@@ -22,6 +22,32 @@ export function isSameOrigin(originHeader: string | null, hostHeader: string | n
   return origin.host.toLowerCase() === hostHeader.trim().toLowerCase();
 }
 
+/**
+ * DNS-rebinding defense for the app itself. A page on another site can point
+ * its own hostname at 127.0.0.1 and then talk to this server "same-origin";
+ * its requests still carry that hostname in the Host header, so only known
+ * hostnames are answered. The port is ignored; the name must match exactly.
+ */
+export function isAllowedHost(hostHeader: string | null, allowed: readonly string[]): boolean {
+  if (!hostHeader) return false;
+  const value = hostHeader.trim().toLowerCase();
+  if (value === '' || value.length > 270 || /[\s/@\\?#]/.test(value)) return false;
+  let host = value;
+  if (value.startsWith('[')) {
+    const end = value.indexOf(']');
+    if (end === -1) return false;
+    const rest = value.slice(end + 1);
+    if (rest !== '' && !/^:\d{1,5}$/.test(rest)) return false;
+    host = value.slice(0, end + 1);
+  } else {
+    const parts = value.split(':');
+    if (parts.length > 2) return false;
+    if (parts.length === 2 && !/^\d{1,5}$/.test(parts[1]!)) return false;
+    host = parts[0]!;
+  }
+  return allowed.includes(host);
+}
+
 const PUBLIC_PATHS = ['/login'];
 
 export function isPublicPath(pathname: string): boolean {

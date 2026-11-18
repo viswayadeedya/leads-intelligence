@@ -42,7 +42,9 @@ describe('owner view: private-group note accidentally attached', () => {
     expect(JSON.stringify(bundle.owner)).not.toContain('members-only');
     expect(bundle.ownerMarkdown).not.toContain(MARKER);
     expect(bundle.ownerMarkdown).not.toContain('members-only');
-    expect(bundle.owner.sources.every((s) => !s.manual)).toBe(true);
+    // only pages of the business's own website are listed; the manual note's source is not
+    expect(bundle.owner.sources.length).toBeGreaterThan(0);
+    expect(bundle.owner.sources.every((s) => s.url.startsWith('https://birchwood-heating.example.invalid/'))).toBe(true);
     expect(bundle.redaction.opportunitiesWithheld).toEqual([{ title: SINGLE_COMMENT_TITLE, reason: 'Relies on restricted, personal or non-public evidence.' }]);
     expect(bundle.redaction.evidenceWithheld).toBeGreaterThanOrEqual(1);
   });
@@ -206,6 +208,7 @@ describe('hostile text is neutralized', () => {
     const ctx = makeCtx();
     const { run } = await runGolden(ctx, 'baseline-phone-only');
     const bundle = getReportBundle(ctx, reportId(ctx.store.snapshot(), run.id));
-    expect(() => renderOwnerMarkdown(bundle.internal)).toThrowError(expect.objectContaining({ code: 'forbidden' }));
+    // The type system refuses this too; the cast simulates a caller that bypasses it.
+    expect(() => renderOwnerMarkdown(bundle.internal as never)).toThrowError(expect.objectContaining({ code: 'forbidden' }));
   });
 });

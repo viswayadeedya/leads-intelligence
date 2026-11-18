@@ -9,7 +9,7 @@
 import { appendAudit, getOwned, listOwned, requireHuman, type Ctx } from '../context';
 import { AppError } from '../errors';
 import { newId, sha256, shortId } from '../ids';
-import type { Business, Caveat, Confidence, Db, Evidence, InvestigationRun, Opportunity, Report, SourceRecord } from '../types';
+import type { Business, Caveat, Confidence, Db, Evidence, InvestigationRun, Opportunity, Report, SourceRecord, Unknown, UnknownTopic } from '../types';
 
 export type SourceView = {
   label: string;
@@ -55,8 +55,9 @@ export type OpportunityView = {
 export type JourneyState = 'Not checked' | 'Checked; not found' | 'Access restricted' | 'Error' | 'Verified';
 export type JourneyRow = { step: string; state: JourneyState; detail: string };
 
+/** The operator's view. Never rendered for, or exported to, anyone else. */
 export type ReportView = {
-  audience: 'internal' | 'owner';
+  audience: 'internal';
   business: { displayName: string; city: string; state: string; domain: string | null; identity: string };
   synthetic: boolean;
   mode: InvestigationRun['mode'];
@@ -72,11 +73,59 @@ export type ReportView = {
   methodology: string[];
 };
 
+// ---- Owner view: an allowlist ---------------------------------------------
+// Every field below is named on purpose. Nothing is copied across from the
+// internal view, so a field added to the internal types cannot reach an owner
+// by accident. tests/owner-view-audit.test.ts pins these keys.
+
+export type OwnerSourceStatus = 'Inspected' | 'Access restricted' | 'Could not be retrieved';
+export type OwnerSourceView = { url: string; status: OwnerSourceStatus; retrievedAt: string };
+export type OwnerEvidenceSource = { label: string; url: string | null };
+export type OwnerEvidenceView = {
+  shortId: string;
+  observation: string;
+  observedAt: string;
+  confidence: Confidence;
+  rationale: string;
+  caveats: Caveat[];
+  stale: boolean;
+  sources: OwnerEvidenceSource[];
+};
+export type OwnerOpportunityView = {
+  title: string;
+  observedFact: string;
+  interpretation: string;
+  alternatives: string[];
+  ownerQuestion: string;
+  possibleFix: string;
+  confidence: Confidence;
+  caveats: Caveat[];
+  evidence: OwnerEvidenceView[];
+};
+export type OwnerReportView = {
+  audience: 'owner';
+  business: { displayName: string; city: string; state: string; domain: string | null; identity: string };
+  synthetic: boolean;
+  investigatedAt: string | null;
+  executiveFinding: string;
+  sources: OwnerSourceView[];
+  journey: JourneyRow[];
+  opportunities: OwnerOpportunityView[];
+  unknowns: { question: string; reason: string }[];
+  ownerQuestions: string[];
+  possibleImprovements: string[];
+  methodology: string[];
+};
+
 export type RedactionSummary = {
   opportunitiesIncluded: number;
   opportunitiesWithheld: { title: string; reason: string }[];
   evidenceWithheld: number;
   sourcesWithheld: number;
+  /** unknowns the owner version leaves out because they are not in a form known to be safe */
+  unknownsWithheld: number;
+  /** included observations that come from a third-party public page (check that site's terms before sharing) */
+  thirdPartyObservationsIncluded: number;
 };
 
 const IDENTITY_LABEL: Record<Business['identityStatus'], string> = {
@@ -133,11 +182,16 @@ export function isOwnerSafeEvidence(e: Evidence, sources: Map<string, SourceReco
   });
 }
 
-function journey(evidence: Evidence[], websiteRecords: SourceRecord[], pending: (e: Evidence) => boolean, rejectedTypes: Set<Evidence['evidenceType']> = new Set(), noneDetail = 'No source for this step was inspected in this investigation.'): JourneyRow[] {
+function journey(evidence: Evidence[], websiteRecords: SourceRecord[], pending: (e: Evidence) => boolean, rejectedTypes: Set<Evidence['evidenceType']> = new Set(), audience: 'internal' | 'owner' = 'internal'): JourneyRow[] {
+  const noneDetail = audience === 'owner' ? 'This report includes no observation for this step.' : 'No source for this step was inspected in this investigation.';
+  const errorDetail =
+    audience === 'owner'
+      ? 'A page could not be retrieved, so this step could not be concluded.'
+      : 'A page could not be retrieved, so this step could not be concluded. Retry the failed source.';
   const anyRestricted = websiteRecords.some((r) => r.accessStatus === 'restricted');
   const anyError = websiteRecords.some((r) => r.accessStatus === 'error' || r.accessStatus === 'unavailable');
   const anyOk = websiteRecords.some((r) => r.accessStatus === 'ok');
-  const row = (step: string, types: Evidence['evidenceType'][]): JourneyRow => {
+  const row = (step: string, types: Evidence['evidenceType'][], fromWebsite = true): JourneyRow => {
     const relevant = evidence.filter((e) => types.includes(e.evidenceType));
     const describe = (list: Evidence[]) => list.map((e) => `${e.observation}${pending(e) ? ' (awaiting review)' : ''}`).join(' ');
     const present = relevant.filter((e) => e.polarity !== 'absence');
@@ -145,9 +199,11 @@ function journey(evidence: Evidence[], websiteRecords: SourceRecord[], pending: 
     if (present.length > 0) return { step, state: 'Verified', detail: describe(relevant) };
     if (absent.length > 0) return { step, state: 'Checked; not found', detail: describe(absent) };
     if (types.some((t) => rejectedTypes.has(t))) return { step, state: 'Not checked', detail: 'An observation for this step was not accepted in review, so nothing is asserted about it.' };
+    // A step that is not read from the website is not affected by how website pages fared.
+    if (!fromWebsite) return { step, state: 'Not checked', detail: audience === 'owner' ? noneDetail : 'No account of this was recorded. Add an observation by hand in the evidence desk if you have one.' };
     if (!anyOk && anyRestricted) return { step, state: 'Access restricted', detail: 'The website refused access, so this step could not be observed. This says nothing about the business.' };
     if (anyRestricted) return { step, state: 'Access restricted', detail: 'Part of the website refused access, so this step could not be concluded.' };
-    if (anyError) return { step, state: 'Error', detail: 'A page could not be retrieved, so this step could not be concluded. Retry the failed source.' };
+    if (anyError) return { step, state: 'Error', detail: errorDetail };
     return { step, state: 'Not checked', detail: noneDetail };
   };
   return [
@@ -155,7 +211,7 @@ function journey(evidence: Evidence[], websiteRecords: SourceRecord[], pending: 
     row('Contact (phone, form)', ['phone_listed', 'contact_form']),
     row('Booking (online request or scheduling)', ['booking_link', 'phone_scheduling_statement']),
     row('After-hours availability', ['after_hours_statement', 'hours_listed']),
-    row('Response and follow-up', ['customer_comment', 'owner_statement']),
+    row('Response and follow-up', ['customer_comment', 'owner_statement'], false),
   ];
 }
 
@@ -171,7 +227,7 @@ function day(iso: string | null): string {
   return iso ? iso.slice(0, 10) : 'an unknown date';
 }
 
-function executiveFinding(business: Business, websiteRecords: SourceRecord[], opps: OpportunityView[], run: InvestigationRun): string {
+function executiveFinding(business: Business, websiteRecords: SourceRecord[], opps: { title: string }[], run: InvestigationRun): string {
   const ok = websiteRecords.filter((r) => r.accessStatus === 'ok').length;
   const failed = websiteRecords.length - ok;
   const scope =
@@ -240,7 +296,116 @@ export function buildInternalView(db: Db, runId: string, now: Date, staleAfterDa
   };
 }
 
-export function buildOwnerView(db: Db, runId: string, now: Date, staleAfterDays: number): { view: ReportView; redaction: RedactionSummary } {
+/** http(s) only, no credentials. Returns null for anything else. */
+function httpUrl(raw: string | null): URL | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    if (u.username !== '' || u.password !== '') return null;
+    return u;
+  } catch {
+    return null;
+  }
+}
+
+const bareHost = (host: string) => host.toLowerCase().replace(/\.$/, '').replace(/^www\./, '');
+
+/**
+ * The address of a page on the business's own site, without query or fragment
+ * (those can carry session or tracking values). Null if the page is anywhere else.
+ */
+function ownSitePageUrl(record: SourceRecord, business: Business): string | null {
+  const u = httpUrl(record.sourceUrl);
+  if (!u || !business.domain) return null;
+  if (bareHost(u.hostname) !== bareHost(business.domain)) return null;
+  return `${u.origin}${u.pathname}`;
+}
+
+const OWNER_STATUS: Record<SourceRecord['accessStatus'], OwnerSourceStatus> = {
+  ok: 'Inspected',
+  restricted: 'Access restricted',
+  unavailable: 'Could not be retrieved',
+  error: 'Could not be retrieved',
+};
+
+const OWNER_UNKNOWN_QUESTION: Record<UnknownTopic, string> = {
+  booking_link: 'Whether the website offers online booking is unknown.',
+  contact_form: 'Whether the website has a contact form is unknown.',
+  after_hours_statement: 'Whether the website describes after-hours availability is unknown.',
+};
+
+/**
+ * Owner wording for an unknown, rebuilt from structured fields and from the
+ * access status of the records it points at. The stored question and reason
+ * are never used. Anything not in a recognised, consistent form returns null
+ * and is withheld.
+ */
+export function ownerUnknown(u: Unknown, runRecords: Map<string, SourceRecord>): { question: string; reason: string } | null {
+  const isCount = (n: unknown): n is number => typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 100;
+  if (u.kind !== 'website_not_inspected' && u.kind !== 'feature_not_concluded') return null;
+  if (!Array.isArray(u.sourceRecordIds) || !isCount(u.inspectedCount) || !isCount(u.unreachedPlannedCount) || typeof u.budgetExhausted !== 'boolean') return null;
+  let restricted = 0;
+  let notRetrieved = 0;
+  for (const id of u.sourceRecordIds) {
+    const r = runRecords.get(id);
+    // Only failed pages of the business's own public website may be counted.
+    if (!r || r.sourceType !== 'website' || r.permittedStorageClass !== 'PUBLIC_BUSINESS' || r.accessStatus === 'ok') return null;
+    if (r.accessStatus === 'restricted') restricted++;
+    else notRetrieved++;
+  }
+  const parts: string[] = [];
+  if (restricted > 0) parts.push(`${restricted} page(s) refused access`);
+  if (notRetrieved > 0) parts.push(`${notRetrieved} page(s) could not be retrieved`);
+  if (u.unreachedPlannedCount > 0) parts.push(`${u.unreachedPlannedCount} planned page(s) were not reached`);
+  if (u.budgetExhausted) parts.push('the inspection stopped at its preset limit before every planned page was read');
+  if (parts.length === 0) return null;
+  if (u.kind === 'website_not_inspected') {
+    if (u.inspectedCount !== 0) return null;
+    return {
+      question: 'How customers can contact or book through the website is unknown.',
+      reason: `The website could not be inspected: ${parts.join('; ')}. This is not a finding about the business.`,
+    };
+  }
+  if (typeof u.topic !== 'string' || !Object.hasOwn(OWNER_UNKNOWN_QUESTION, u.topic) || u.inspectedCount < 1) return null;
+  return {
+    question: OWNER_UNKNOWN_QUESTION[u.topic],
+    reason: `It was not found on the ${u.inspectedCount} page(s) inspected, but ${parts.join(', and ')}. "Not found on inspected pages" does not mean it does not exist.`,
+  };
+}
+
+function ownerEvidenceView(e: Evidence, sources: Map<string, SourceRecord>, business: Business, now: Date, staleAfterDays: number): OwnerEvidenceView {
+  const list: OwnerEvidenceSource[] = [];
+  for (const id of e.sourceRecordIds) {
+    const r = sources.get(id);
+    if (!r) continue;
+    if (r.sourceType === 'website') {
+      const url = ownSitePageUrl(r, business);
+      if (url) list.push({ label: 'Business website', url });
+    } else {
+      list.push({ label: 'Public page, recorded by hand', url: httpUrl(r.sourceUrl)?.toString() ?? null });
+    }
+  }
+  return {
+    shortId: shortId(e.id),
+    observation: e.observation,
+    observedAt: e.observedAt,
+    confidence: e.confidence,
+    rationale: e.confidenceRationale,
+    caveats: [...e.caveats],
+    stale: isStale(e, now, staleAfterDays),
+    sources: list,
+  };
+}
+
+export type OwnerBuild = {
+  view: OwnerReportView;
+  redaction: RedactionSummary;
+  /** opportunityIds[i] is the internal ID of view.opportunities[i]. Kept outside the view on purpose. */
+  opportunityIds: string[];
+};
+
+export function buildOwnerView(db: Db, runId: string, now: Date, staleAfterDays: number): OwnerBuild {
   const { run, business, records, evidence, opportunities, sources } = load(db, runId);
   const evidenceById = new Map(evidence.map((e) => [e.id, e]));
   const safeEvidence = evidence.filter((e) => isOwnerSafeEvidence(e, sources));
@@ -256,37 +421,72 @@ export function buildOwnerView(db: Db, runId: string, now: Date, staleAfterDays:
     } else if (!o.evidenceIds.every((id) => safeIds.has(id))) {
       // The claim may rest on restricted material, so the whole claim is withheld.
       withheld.push({ title: o.title, reason: 'Relies on restricted, personal or non-public evidence.' });
+    } else if (o.reasonedFrom !== 'public_only') {
+      // Its sentences may paraphrase material the owner must not see, whatever it cites.
+      withheld.push({ title: o.title, reason: 'Its wording was written with restricted or internal material in view, or that was not recorded.' });
     } else {
       included.push(o);
     }
   }
-  const opps = included.map((o) => oppView(o, evidenceById, sources, now, staleAfterDays));
-  const publicRecords = records.filter((r) => r.permittedStorageClass === 'PUBLIC_BUSINESS' && r.sourceType === 'website');
+  const opps: OwnerOpportunityView[] = included.map((o) => ({
+    title: o.title,
+    observedFact: o.observedFact,
+    interpretation: o.interpretation,
+    alternatives: [...o.alternativeExplanations],
+    ownerQuestion: o.ownerQuestion,
+    possibleFix: o.possibleFix,
+    confidence: o.confidence,
+    caveats: [...o.caveats],
+    evidence: o.evidenceIds
+      .map((id) => evidenceById.get(id))
+      .filter((e): e is Evidence => Boolean(e))
+      .map((e) => ownerEvidenceView(e, sources, business, now, staleAfterDays)),
+  }));
+
+  // Only pages of the business's own site, and only their address and a fixed status word.
+  const publicRecords = records.filter((r) => r.permittedStorageClass === 'PUBLIC_BUSINESS' && r.sourceType === 'website' && ownSitePageUrl(r, business) !== null);
+  const ownerSources: OwnerSourceView[] = publicRecords.map((r) => ({
+    url: ownSitePageUrl(r, business)!,
+    status: OWNER_STATUS[r.accessStatus] ?? 'Could not be retrieved',
+    retrievedAt: r.retrievedAt,
+  }));
+
+  const ownerUnknowns: { question: string; reason: string }[] = [];
+  let unknownsWithheld = 0;
+  for (const u of run.unknowns) {
+    const safe = ownerUnknown(u, sources);
+    if (safe) ownerUnknowns.push(safe);
+    else unknownsWithheld++;
+  }
+
   const method = [...BASE_METHOD];
   if (business.synthetic) method.unshift('MOCK DATA: this report describes a fictional business built from synthetic fixtures. It is not evidence about any real company.');
-  const view: ReportView = {
+  const includedEvidenceIds = new Set(included.flatMap((o) => o.evidenceIds));
+  const view: OwnerReportView = {
     audience: 'owner',
     business: { displayName: business.displayName, city: business.city, state: business.state, domain: business.domain, identity: IDENTITY_LABEL[business.identityStatus] },
     synthetic: business.synthetic,
-    mode: run.mode,
-    runId,
     investigatedAt: run.startedAt,
     executiveFinding: executiveFinding(business, publicRecords, opps, run),
-    sources: publicRecords.map(sourceView),
-    journey: journey(safeEvidence, publicRecords, () => false, new Set(evidence.filter((e) => !safeIds.has(e.id) && e.dedupeKey.startsWith('website:')).map((e) => e.evidenceType)), 'This report includes no observation for this step.'),
+    sources: ownerSources,
+    // No review-state wording: the owner is not told what was held back or why.
+    journey: journey(safeEvidence, publicRecords, () => false, new Set(), 'owner'),
     opportunities: opps,
-    unknowns: run.unknowns.map((u) => ({ question: u.question, reason: u.reason })),
+    unknowns: ownerUnknowns,
     ownerQuestions: [...new Set(opps.map((o) => o.ownerQuestion))],
     possibleImprovements: [...new Set(opps.map((o) => o.possibleFix))],
     methodology: method,
   };
   return {
     view,
+    opportunityIds: included.map((o) => o.id),
     redaction: {
       opportunitiesIncluded: opps.length,
       opportunitiesWithheld: withheld,
       evidenceWithheld: evidence.length - safeEvidence.length,
-      sourcesWithheld: records.length - publicRecords.length,
+      sourcesWithheld: records.length - ownerSources.length,
+      unknownsWithheld,
+      thirdPartyObservationsIncluded: evidence.filter((e) => includedEvidenceIds.has(e.id) && e.dedupeKey.startsWith('manual:')).length,
     },
   };
 }
@@ -317,8 +517,8 @@ function safeUrl(url: string | null): string | null {
   }
 }
 
-export function renderOwnerMarkdown(view: ReportView): string {
-  if (view.audience !== 'owner') throw new AppError('forbidden', 'Only the owner-safe view can be exported.');
+export function renderOwnerMarkdown(view: OwnerReportView): string {
+  if ((view as { audience: string }).audience !== 'owner') throw new AppError('forbidden', 'Only the owner-safe view can be exported.');
   const L: string[] = [];
   L.push(`# Investigation report: ${mdEscape(view.business.displayName)}`);
   if (view.synthetic) L.push('', '**MOCK DATA. Fictional business. Not evidence about any real company. Do not send.**');
@@ -331,7 +531,7 @@ export function renderOwnerMarkdown(view: ReportView): string {
   if (view.sources.length === 0) L.push('No public sources were inspected.');
   for (const s of view.sources) {
     const url = safeUrl(s.url);
-    L.push(`- ${url ?? mdEscape(s.label)} — ${mdEscape(s.accessDetail)} — retrieved ${mdEscape(s.retrievedAt)}`);
+    if (url) L.push(`- ${url} — ${mdEscape(s.status)} — retrieved ${mdEscape(s.retrievedAt)}`);
   }
   L.push('', '## Observed customer journey', '');
   for (const j of view.journey) L.push(`- **${mdEscape(j.step)}:** ${mdEscape(j.state)}. ${mdEscape(j.detail)}`);
@@ -351,7 +551,7 @@ export function renderOwnerMarkdown(view: ReportView): string {
       L.push(`- \`${e.shortId}\` ${mdEscape(e.observation)} Observed ${mdEscape(e.observedAt)}. ${mdEscape(e.rationale)}`);
       for (const s of e.sources) {
         const url = safeUrl(s.url);
-        if (url) L.push(`  - Source: ${url}`);
+        L.push(url ? `  - Source: ${mdEscape(s.label)}, ${url}` : `  - Source: ${mdEscape(s.label)} (no link recorded)`);
       }
     }
     L.push('');
@@ -367,7 +567,7 @@ export function renderOwnerMarkdown(view: ReportView): string {
 
 // ---- Lifecycle ------------------------------------------------------------
 
-export function hashView(view: ReportView): string {
+export function hashView(view: ReportView | OwnerReportView): string {
   return sha256(JSON.stringify(view));
 }
 
@@ -414,7 +614,30 @@ export function syncReportAfterChange(db: Db, ctx: Ctx, runId: string): Report {
     const current = hashView(buildInternalView(db, runId, ctx.now(), ctx.config.staleAfterDays));
     if (current !== report.approvedContentHash) reopen(db, ctx, report, 'Evidence or opportunities changed after approval.');
   }
+  // The owner text can change without the internal view changing (for example
+  // when a source is reclassified), so the share approval is checked on its own.
+  if (report.status === 'approved_to_share') {
+    const why = shareApprovalProblem(db, ctx, report);
+    if (why) withdrawShareApproval(db, ctx, report, why);
+  }
   return report;
+}
+
+/** Null when the stored snapshot is intact and is still exactly what the owner view renders to. */
+function shareApprovalProblem(db: Db, ctx: Ctx, report: Report): string | null {
+  if (!report.sharedSnapshot || !report.sharedContentHash) return 'No approved owner text is stored.';
+  if (sha256(report.sharedSnapshot) !== report.sharedContentHash) return 'The stored owner text does not match what was approved.';
+  const current = sha256(renderOwnerMarkdown(buildOwnerView(db, report.runId, ctx.now(), ctx.config.staleAfterDays).view));
+  if (current !== report.sharedContentHash) return 'The owner version would now read differently from the text that was approved.';
+  return null;
+}
+
+function withdrawShareApproval(db: Db, ctx: Ctx, report: Report, why: string): void {
+  report.status = 'approved_internal';
+  report.sharedAt = null;
+  report.sharedSnapshot = null;
+  report.sharedContentHash = null;
+  appendAudit(db, ctx, 'report.share_approval_withdrawn', 'report', report.id, why, 'system');
 }
 
 export type ReportBundle = {
@@ -423,7 +646,9 @@ export type ReportBundle = {
   business: Business;
   internal: ReportView;
   internalHash: string;
-  owner: ReportView;
+  owner: OwnerReportView;
+  /** internal IDs of the findings in `owner.opportunities`, in the same order */
+  ownerOpportunityIds: string[];
   ownerMarkdown: string;
   ownerHash: string;
   redaction: RedactionSummary;
@@ -447,7 +672,7 @@ export function getReportBundle(ctx: Ctx, reportId: string): ReportBundle {
   const run = getOwned(db.runs, report.runId, ctx.actor, 'Investigation');
   const business = getOwned(db.businesses, report.businessId, ctx.actor, 'Business');
   const internal = buildInternalView(db, run.id, ctx.now(), ctx.config.staleAfterDays);
-  const { view: owner, redaction } = buildOwnerView(db, run.id, ctx.now(), ctx.config.staleAfterDays);
+  const { view: owner, redaction, opportunityIds } = buildOwnerView(db, run.id, ctx.now(), ctx.config.staleAfterDays);
   const ownerMarkdown = renderOwnerMarkdown(owner);
   return {
     report,
@@ -456,6 +681,7 @@ export function getReportBundle(ctx: Ctx, reportId: string): ReportBundle {
     internal,
     internalHash: hashView(internal),
     owner,
+    ownerOpportunityIds: opportunityIds,
     ownerMarkdown,
     ownerHash: sha256(ownerMarkdown),
     redaction,
@@ -537,12 +763,26 @@ export function approveShare(ctx: Ctx, reportId: string, expectedOwnerHash: stri
 /** Returns the exact approved owner text. Recorded as an export; nothing leaves the machine. */
 export function exportOwnerReport(ctx: Ctx, reportId: string): { filename: string; markdown: string } {
   requireHuman(ctx.actor, 'Exporting a report');
-  return ctx.store.transact((db) => {
+  // A refusal must be recorded even though the call fails, so the error is
+  // raised after the transaction instead of inside it.
+  let failure: AppError | null = null;
+  const result = ctx.store.transact((db) => {
     const report = getOwned(db.reports, reportId, ctx.actor, 'Report');
     if (report.status !== 'approved_to_share' || !report.sharedSnapshot) {
-      throw new AppError('approval_required', 'Only an owner version you have approved for sharing can be exported.');
+      failure = new AppError('approval_required', 'Only an owner version you have approved for sharing can be exported.');
+      return null;
+    }
+    // Re-check at the moment of export: the stored text must be intact and
+    // must still be exactly what the owner view renders to today.
+    const why = shareApprovalProblem(db, ctx, report);
+    if (why) {
+      withdrawShareApproval(db, ctx, report, why);
+      failure = new AppError('approval_required', `${why} Nothing was exported. Preview the owner version and approve it again.`);
+      return null;
     }
     appendAudit(db, ctx, 'report.exported', 'report', report.id, `Owner version ${report.version} exported as Markdown.`);
     return { filename: `owner-report-${report.id.slice(4, 12)}-v${report.version}.md`, markdown: report.sharedSnapshot };
   });
+  if (failure) throw failure;
+  return result!;
 }

@@ -1,0 +1,33 @@
+# gitleaks configuration. Run with: npm run secret-scan
+#
+# All of gitleaks' default rules apply. This file adds one project rule and
+# tells the working-folder scan to skip folders that are never committed.
+# It does NOT silence any rule and does NOT allowlist any source folder:
+# deliberate fake values are marked one by one, at the line (gitleaks:allow)
+# or by fingerprint in .gitleaksignore, each with a reason.
+
+title = "Opportunity Intelligence Engine"
+
+[extend]
+useDefault = true
+
+# A local path with an operating-system account name is not a credential, but
+# it is personal data that should not be published. (This was found once, in
+# captured test output, before the first commit.)
+[[rules]]
+id = "local-user-directory-path"
+description = "Absolute path that contains an operating-system account name"
+regex = '''(?i)\b[a-z]:[\\/]+users[\\/]+[a-z0-9._-]{2,}[\\/]'''
+keywords = ["users"]
+
+# Folders that exist only on a developer's machine. Every entry here is also in
+# .gitignore, so nothing matched by these patterns can be committed.
+[[allowlists]]
+description = "Uncommitted build output, dependencies and the local data folder"
+paths = [
+  '''^\.next[\\/]''',
+  '''^node_modules[\\/]''',
+  '''^\.data[^\\/]*[\\/]''',
+  '''^coverage[\\/]''',
+  '''^tsconfig\.tsbuildinfo$''',
+]

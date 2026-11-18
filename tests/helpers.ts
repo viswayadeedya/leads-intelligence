@@ -1,3 +1,4 @@
+import { completeSetup, prepareSetup, type SetupSink } from '@/lib/auth';
 import { loadConfig, type AppConfig } from '@/lib/config';
 import type { Ctx } from '@/lib/context';
 import { MockRuleReasoner, type Reasoner } from '@/lib/reasoning/reasoner';
@@ -45,4 +46,32 @@ export function liveOpps(db: Db, runId: string) {
 
 export function activeEv(db: Db, runId: string) {
   return db.evidence.filter((e) => e.runId === runId && !e.supersededBy);
+}
+
+/** Not a real credential: a fixed passphrase used only by tests, against in-memory or temporary stores. */
+export const TEST_PASSPHRASE = 'orchard lantern seven kites';
+
+/** Holds the one-time setup code in memory instead of a file. */
+export function memorySink(): { sink: SetupSink; code: () => string | null } {
+  let code: string | null = null;
+  return {
+    code: () => code,
+    sink: {
+      location: '(memory)',
+      exists: () => code !== null,
+      write: (c) => {
+        code = c;
+      },
+      remove: () => {
+        code = null;
+      },
+    },
+  };
+}
+
+/** Gets a session the only way the app allows: first-run setup with the one-time code, then the session it returns. */
+export function signInForTest(store: Store, config: AppConfig = loadConfig({}), now: Date = NOW): string {
+  const m = memorySink();
+  prepareSetup(store, {}, now, m.sink);
+  return completeSetup(store, config, {}, now, m.sink, { code: m.code()!, passphrase: TEST_PASSPHRASE, confirm: TEST_PASSPHRASE });
 }

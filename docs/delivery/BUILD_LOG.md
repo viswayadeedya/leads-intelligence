@@ -1,6 +1,6 @@
 # Build Log
 
-Status: **Phase 0 and Phase 1 (roadmap numbering) built in mock mode. Live mode is not available. Awaiting independent review; nothing here is self-certified.** Committed locally as the root commit of `main`; no remote, not pushed.
+Status: **Phase 0 and Phase 1 (roadmap numbering) built in mock mode. Live mode is not available. Awaiting independent review; nothing here is self-certified.** `main` is commit `22068db` and has since been published to a remote by the owner. Review work is on the unpushed branch `review/milestone-1-hardening` (see the last entry).
 
 ## Initial handoff
 - Documents and synthetic fixture prepared.
@@ -121,3 +121,125 @@ The root commit of `main`. Print its hash with `git rev-list --max-parents=0 HEA
 
 ### Exact next step
 Unchanged from the previous entry: independent review against `REVIEWER_CHECKLIST.md`, and the owner's unaided five-task walkthrough. Before any push: install and run gitleaks over history, decide public or private hosting, and check the commit author email.
+
+---
+
+## 2026-11-18 — Review branch `review/milestone-1-hardening`: owner-report leak, semantic claim tests, controlled fetcher tests, sign-in, secret scanner
+
+**Requested by the owner.** Work is on the branch `review/milestone-1-hardening`, cut from `main` at `22068db`. Nothing was pushed, nothing was deployed, `main` was not touched. Still mock-only: no real website was fetched and no LLM was called.
+
+**State found at the start (not done by the builder):** a remote `origin` now exists and `main` is published there at `22068db`; an untracked file `AGENTS.md` (a copy of `CLAUDE.md` addressed to another assistant) is in the folder. `AGENTS.md` was left untracked and is not part of this commit. Earlier statements in this log that "no remote exists" were true when written and are no longer true.
+
+### 1. Does `buildOwnerView` leak through `run.unknowns`? Yes.
+`buildOwnerView` copied every unknown's `question` and `reason` into the owner view and the Markdown export, unfiltered. Unknowns are free text with no privacy class, so the owner report was fail-open for them.
+
+- **What actually reached owner output in the existing code paths:** internal diagnostics, not private notes. The only writer of unknowns (`aggregateWebsiteEvidence`) builds them from website records, so the leaked text was page paths plus fetch detail: "Timed out", "Access refused (HTTP 403)", "Not fetched: robots.txt could not be read", "the request budget for this run was reached", "Blocked by the safe-fetch rules".
+- **What could have reached it:** anything. A planted unknown containing the private-group marker appeared verbatim in the owner view and export (test: "an unknown written as free text never reaches the owner view or export").
+- **No real data was involved.** Only synthetic fixtures have ever been run.
+
+The audit of every owner-facing field found more. Before the fix, 21 of the 24 new audit tests failed (`docs/delivery/test-evidence/owner-view-audit-BEFORE-fix.txt`):
+
+| Leak | Where it showed | Severity |
+|---|---|---|
+| `run.unknowns[].question` and `.reason` | owner view, owner preview page, Markdown export | High |
+| Text written by the reasoner after it was shown restricted evidence. A claim citing only public evidence IDs carried the private-group note into the owner view and export. | owner view, preview, export, outreach draft | High (latent: the rule-based mock does not do this; an LLM could) |
+| `sourceRecord.accessDetail` (free text) | owner view, preview, export | Medium |
+| `evidence.supportingExcerpt` (raw page text, not screened for personal data) | owner view object and owner preview page; not in the export, so the preview did not match the export | Medium |
+| `opportunity.decisionReason` (the operator's private note) | owner view object only | Medium |
+| Review-state wording ("An observation for this step was not accepted in review", "Retry the failed source") | owner journey table and export | Low |
+| `runId`, `mode`, full evidence and opportunity IDs, privacy class, review status | owner view object | Low |
+| A website record whose URL is not on the business's domain | would have been listed with its full URL, query string included | Low (cannot occur in mock mode) |
+| "Response and follow-up" journey row showed "Error" when a website page failed, though it is not read from the website | internal and owner journey | Low (accuracy) |
+
+**Fixes**
+- The owner view is now its own type (`OwnerReportView`), built field by field. Nothing is copied from the internal view. A test pins its exact keys.
+- Unknowns carry structured fields (`kind`, `topic`, counts). The owner wording is rebuilt from those and from the access status of the referenced records; the stored `question` and `reason` are never printed. An unknown that is unstructured, inconsistent, or that points at a non-public record is withheld and counted in the redaction summary.
+- Owner sources show only pages on the business's own domain, without query string, with a fixed status word ("Inspected", "Access restricted", "Could not be retrieved").
+- Reasoning runs in two contexts. Claims that can ever reach an owner are written in a pass that is shown only public observations and can cite nothing else. A second pass (only when restricted evidence exists) sees everything and may keep only claims that cite restricted evidence; those are marked `includes_restricted` and stay internal. A claim with no recorded context is withheld.
+- Export re-checks the approved text at the moment of export: the stored snapshot must hash to what was approved **and** must equal what the owner view renders now. Otherwise the share approval is withdrawn, the refusal is audited, and nothing is exported. The same check runs after every change.
+- The outreach draft is built only from the owner view.
+- The redaction summary now also tells the operator how many unknowns were withheld and how many included observations come from a third-party page (the open terms question in DECISIONS).
+
+### 2. Adversarial semantic claim tests; human approval preserved
+`tests/semantic-claims.test.ts` (95 tests). The verifier gained rules and paraphrase lists for: loss claims without the word "losing"; quantities without "$" or "%" (shares, multiples, "4k", "/mo", number words); patterns from one anecdote; certainty and causation; interpretations with no hedge; fixes not conditional on owner confirmation; outcome promises; comparisons with businesses nobody inspected; accusatory wording; unscoped or cross-sentence absence; a missing feature not backed by its own absence observation, or contradicted by a presence observation; behaviour inferred from a web page; an anecdote stated as fact; a complaint cited while a contrary account is left out; sources the evidence does not come from; links, domains, email addresses and usernames; old evidence worded as current or without its date; digit-for-letter swaps, spaced letters, full-width characters; invisible characters, mixed alphabets and markup (refused outright).
+
+A real defect found while writing them: text rules could match **across two fields** of a proposal, because fields were joined without a sentence break. Fixed.
+
+**Known gaps, asserted as tests (the verifier accepts these):** an evaluative judgment with no evidence; a consequence implied without a trigger word; urgency implied by scenario; naming a different feature than the one observed; the same overclaim in another language; a leading owner question; a slanted alternative explanation. The verifier is a keyword heuristic and cannot judge meaning.
+
+**Human approval:** a claim that gets past the verifier is stored as pending and reaches an owner only after four separate human actions (accept each observation, accept the claim, approve the report, approve the exact owner text), each audited as human. A `model` or `system` actor is refused on every review, approval, export, investigation-start, manual-evidence and outreach step, and nothing changes. Reasoner output cannot carry `decision`, `status`, `approved`, `reasonedFrom` or any other extra field. Reworded text after approval gets a new pending decision and withdraws both approvals.
+
+### 3. Live fetcher against controlled servers
+`tests/live-fetch-controlled.test.ts` (111 tests) with `tests/lab/controlled-net.ts`. Real sockets and the real HTTP parser against HTTP, raw-TCP and TLS servers on 127.0.0.1. Test hostnames resolve through the lab's resolver to public-looking addresses; a test seam in the fetcher (`createPinnedRequest({ dial })`) translates those addresses to the local servers. Any connection to an address that is not a registered test site lands on a "canary" standing in for an internal service; every test asserts it was never reached. **No request left this machine. No real site was contacted.**
+
+Covered: same-site, chained, looping, off-site and oversized-body redirects; redirects to 28 internal, encoded, credentialed or non-HTTP targets (one socket opened, never a second); DNS rebinding within a request and between redirect hops; 15 kinds of private or mixed DNS answers (zero sockets); DNS failures; 11 malformed or truncated responses; compressed, UTF-16, binary, invalid UTF-8 and unknown-charset bodies; empty pages; wrong content types; odd status codes; four timeout shapes including a drip-fed body; declared, endless and exactly-at-limit sizes; refused connections; 401/403/407/451/429/404/410/5xx; a bot challenge; request headers (GET only, no cookies); TLS with an untrusted certificate, a wrong-hostname certificate, and an HTTPS-to-HTTP downgrade. The TLS tests need OpenSSL to make a throwaway certificate and are skipped without it; they ran here (OpenSSL 3.5.6). Then the whole investigation pipeline over the fetcher against a controlled site: healthy site, timeout then successful retry, home page redirecting elsewhere, inner page redirecting to the metadata address, robots.txt disallow and unreadable robots.txt, six unreadable home pages, the request cap against a 40-link page, and hostile page content.
+
+**Defects found and fixed in the fetcher**
+- A compressed response (sent despite `Accept-Encoding: identity`) was decoded as text and treated as an inspected page with nothing on it, which would have produced false "not found" observations. Now refused.
+- UTF-16, binary and invalid UTF-8 bodies were likewise read as garbage. Now refused; Latin-1 is decoded properly; other charsets are refused.
+- An empty 200 response counted as an inspected page. Now unavailable.
+- A redirect to a different site was followed unless the caller supplied an allowlist, and the transport never did, so another site's content could have been attributed to the business. Off-site redirects are now refused by default, before the other host is even resolved.
+- HTTPS redirecting to plain HTTP was followed. Now refused.
+- Malformed HTTP, TLS failures and truncated bodies were all reported as a retryable "network error". Now categorised; malformed and TLS failures are not retried.
+- A declared `Content-Length` over the cap is refused before the body is read.
+
+**General live research is still disabled.** `runtime.ts` constructs only the fixture transport. A second lock was added: investigations refuse any non-synthetic transport unless `config.liveFetchUnlocked` is true, `loadConfig` always returns false, and no environment variable sets it (tested). A test scans `src/` and fails if any file other than the fetcher itself uses it, sets the switch, or uses the `dial` seam.
+
+### 4. Operator sign-in
+- **One-click sign-in is removed.** There is no code path to a session without a secret.
+- First run: the sign-in page asks for a one-time setup code that the server writes to `<data folder>/setup-code.txt`, and a passphrase of at least 12 characters. Only a salted scrypt hash (N=2^15, r=8, p=3) is stored. The code is stored only as a hash and destroyed on success.
+- Failed attempts are counted globally. The previous limiter was keyed on the `X-Forwarded-For` header, so changing that header reset it (the old test demonstrated this by switching from `client-1` to `client-2`). Five failures in 15 minutes lock sign-in and setup; a correct secret is refused while locked; attempts during the lock do not extend it; existing sessions keep working.
+- Sessions: 60-minute idle limit in addition to the 8-hour limit, at most 5, "Sign out all other sessions", change passphrase (needs the current one, ends other sessions). Sessions created by the old one-click sign-in are not honoured.
+- The request proxy now refuses any `Host` header other than `localhost`, `127.0.0.1`, `[::1]` (or names in `OI_ALLOWED_HOSTS`) with 421. Without this, a web page could reach the app through DNS rebinding, because its `Origin` would match its own `Host`.
+- `OPERATOR_PASSPHRASE` still works as an override but is plain text in the environment; a weak value is refused outright.
+- `npm run auth:reset` removes the passphrase and sessions (needs access to the project folder), keeps research data.
+- Failed attempts, lockouts, setup, passphrase changes and resets are in the audit trail.
+
+**Effect on you:** the next time you open the app it shows "Set up sign-in". Open `.data/setup-code.txt`, paste the code, choose a passphrase.
+
+### 5. Secret scanner
+gitleaks 8.30.1 installed with `winget install --id Gitleaks.Gitleaks -e` (installer hash verified by winget). `npm run secret-scan` now runs gitleaks over the full git history and over the working folder, then the project-rule script. A missing scanner fails the check. `.gitleaks.toml` keeps all default rules, adds a rule for local user-directory paths, and skips only folders that are in `.gitignore`.
+- **History, including the commit already published on `origin/main`:** 3 findings, all the made-up canary strings in `scripts/check-client-bundle.mjs`. Not secrets; recorded by fingerprint in `.gitleaksignore` with the reason. Those lines now carry `gitleaks:allow`.
+- **Working folder:** 0 findings.
+- The scanner was shown to fail on a planted GitHub-token-shaped string and on a planted local user path, and to pass again once they were removed.
+- A pre-commit hook is provided in `.githooks/` but is **not** active; `npm run hooks:install` enables it.
+
+### Commands and results (final run)
+| Command | Result |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run lint` | 74 files, 0 errors, 0 warnings |
+| `npm test` | 13 files, **461 passed, 0 failed, 0 skipped** (was 176). New: owner-view-audit 24, semantic-claims 95, live-fetch-controlled 111, auth-hardening 55. ssrf 72 → 73. authz 15 → 14 (the one-click test was removed with the feature). |
+| `npm run secret-scan` | gitleaks: history 0, working folder 0; project rules: 0 findings |
+| `npm run check:bundle` | 14 browser files, 0 findings |
+| `npm run audit` | 0 vulnerabilities in production dependencies. Dev-tooling advisories unchanged and unfixed. |
+| `npm run verify` | exit 0. Output: `docs/delivery/test-evidence/verify-output.txt`; every test by name: `vitest-verbose.txt` |
+
+Browser check (dev server on a throwaway data folder, since deleted): first-run setup refused a wrong code and accepted the right one; the data file held only hashes; wrong passphrase refused and audited; right passphrase signed in; `auth:reset` returned the app to setup; the owner preview of the timeout example showed the rebuilt unknown wording with no "Timed out", no "Retry" and no internal IDs; no console errors. Probes with curl: `Host: attacker.example:3212` → 421; anonymous page → 307 to `/login`; anonymous or forged-cookie API → 401. Screenshots 14 to 17 in `docs/ux/screenshots/`.
+
+### Failures and surprises along the way
+1. 21 of 24 owner-audit tests failed on the unfixed code (the point of writing them first).
+2. First run of the claim tests: 12 of 95 failed. Three were verifier defects (cross-field matching; "a call that was missed" read as a loss claim; number words in evidence not allowed in the claim). The rest were test wording.
+3. First run of the fetcher tests: 110 of 111 passed; the remaining one was a platform-dependent expectation (a reset can surface on the request or the response).
+4. One existing SSRF test changed meaning: a redirect to another site that resolves privately is now stopped earlier, as an off-site redirect. The test was split in two.
+5. A forged session cookie on a page gets HTTP 200, not a redirect status: the page shell streams first and then redirects to `/login`. The body was checked and contains no protected content. API routes return 401.
+6. Shell quoting broke two patch scripts again; edits were applied with file tools.
+
+### Not done / not verified
+- No real website fetched. No LLM. No database, no RLS. No CI. No egress restriction (the fetcher's checks are application-level only).
+- No second factor. Lockout is global, so anyone who can reach the port can lock sign-in for 15 minutes (existing sessions are unaffected).
+- The setup code file and the data file are readable by any program running as the same operating-system user.
+- The fetcher resolves with the system resolver and pins the first answer; it does not try a second address if the first is unreachable.
+- The two-context reasoning doubles reasoner calls when restricted evidence exists, and has only been exercised with rule-based and scripted test reasoners.
+- A public-only claim can omit a restricted observation that contradicts it. The verifier's contradiction rule only sees evidence in the same context.
+- Automated browser tests still do not exist. The owner preview at desktop width was checked by reading the page, not by screenshot (the browser pane was too small for a legible one).
+- Accessibility still not audited. Outcomes, discovery, search, retention and delete still not built.
+
+### Blockers (need the owner)
+1. Review this branch and decide whether to merge it. It is not pushed.
+2. Third-party comment policy (unchanged). The owner preview now counts such observations so the decision is visible each time.
+3. Phase 2 approval and site choices (unchanged).
+4. Whether to enable the pre-commit hook, and whether to add CI now that a remote exists.
+
+### Exact next step
+Owner or independent reviewer: `git switch review/milestone-1-hardening`, `npm install`, install gitleaks if absent, `npm run verify`, then `npm run dev` and complete "Set up sign-in". Review `CLAUDE_REVIEW_PACKET.md` section "Review branch". If accepted, merge to `main` yourself.

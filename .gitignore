@@ -87,6 +87,8 @@ auth-state/
 
 # --- Local databases and the mock-mode data store ---
 .data/
+.data-*/
+setup-code.txt
 data/local/
 db.json
 *.db.json

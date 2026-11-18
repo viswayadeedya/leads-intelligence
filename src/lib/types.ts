@@ -66,7 +66,28 @@ export type ErrorCode =
   | 'timeout'
   | 'duplicate_unresolved';
 
-export type Unknown = { id: string; question: string; reason: string; sourceRecordIds: string[] };
+export type UnknownKind = 'website_not_inspected' | 'feature_not_concluded';
+export type UnknownTopic = 'booking_link' | 'contact_form' | 'after_hours_statement';
+
+/**
+ * Something the investigation could not determine.
+ *
+ * `question` and `reason` are INTERNAL free text (they may name budgets,
+ * fetch diagnostics or anything a future writer puts there). The owner report
+ * never prints them: it rebuilds its own wording from the structured fields
+ * below, and withholds any unknown that lacks them (see reports.ts).
+ */
+export type Unknown = {
+  id: string;
+  question: string;
+  reason: string;
+  sourceRecordIds: string[];
+  kind?: UnknownKind;
+  topic?: UnknownTopic | null;
+  inspectedCount?: number;
+  unreachedPlannedCount?: number;
+  budgetExhausted?: boolean;
+};
 
 export type InvestigationRun = {
   id: string;
@@ -202,6 +223,13 @@ export type Opportunity = {
   status: OpportunityStatus;
   decision: OpportunityDecision;
   decisionReason: string | null;
+  /**
+   * What the reasoner was shown when it wrote this claim's text.
+   * 'public_only': nothing but public, PUBLIC_BUSINESS-backed observations.
+   * 'includes_restricted': restricted, personal or non-public material was in view.
+   * Missing (older rows) is treated as not shareable.
+   */
+  reasonedFrom?: 'public_only' | 'includes_restricted';
   createdAt: string;
 };
 
@@ -280,10 +308,25 @@ export type AuditEvent = {
 
 export type Notice = { id: string; kind: 'ok' | 'error'; text: string };
 export type User = { id: string; label: string; createdAt: string; notice: Notice | null };
-export type Session = { tokenHash: string; userId: string; expiresAt: string; createdAt: string };
+export type Session = {
+  tokenHash: string;
+  userId: string;
+  expiresAt: string;
+  createdAt: string;
+  /** Missing on sessions created before sign-in required a credential; those are not honoured. */
+  lastSeenAt?: string;
+  idleMinutes?: number;
+};
+
+/** Sign-in state. Only hashes are stored: never the passphrase, never the setup code. */
+export type AuthState = {
+  credential: { hash: string; createdAt: string; updatedAt: string } | null;
+  setup: { codeHash: string; createdAt: string } | null;
+};
 export type LoginAttempt = { key: string; at: string };
 
 export type Db = {
+  auth: AuthState;
   users: User[];
   sessions: Session[];
   loginAttempts: LoginAttempt[];
@@ -301,6 +344,7 @@ export type Db = {
 
 export function emptyDb(): Db {
   return {
+    auth: { credential: null, setup: null },
     users: [],
     sessions: [],
     loginAttempts: [],

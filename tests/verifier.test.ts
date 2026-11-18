@@ -31,7 +31,7 @@ const base = (ids: string[], over: Partial<Proposal> = {}): Proposal => ({
   title: 'Test claim',
   observed_fact: 'A phone number is listed on the pages inspected.',
   evidence_ids: ids,
-  interpretation: 'Visitors can call.',
+  interpretation: 'Visitors may prefer to call.',
   alternative_explanations: ['Other contact paths may exist.'],
   owner_question: 'How do customers usually reach you?',
   possible_fix: 'Only if confirmed: none needed.',
@@ -134,7 +134,7 @@ describe('verifyProposal', () => {
     expect(ev.caveats).toContain('geo_uncertain');
     const local = verifyProposal(base([ev.id], { observed_fact: 'The business was not in sampled results for a furnace repair search checked on 2026-11-10.', interpretation: 'It may be hard to find for searches in Grand Rapids.', confidence: 'low' }), vctx());
     expect(local).toMatchObject({ ok: false, code: 'geo_unsupported' });
-    const scoped = verifyProposal(base([ev.id], { observed_fact: 'The business was not in sampled results for a furnace repair search checked on 2026-11-10.', interpretation: 'The search had no recorded location, so this says little.', confidence: 'low' }), vctx());
+    const scoped = verifyProposal(base([ev.id], { observed_fact: 'The business was not in sampled results for a furnace repair search checked on 2026-11-10.', interpretation: 'The search had no recorded location, so this may say little.', confidence: 'low' }), vctx());
     // "not" is not an absence keyword match here, but "sampled" scope keeps it honest either way
     expect(scoped.ok).toBe(true);
     if (scoped.ok) expect(scoped.caveats).toContain('geo_uncertain');

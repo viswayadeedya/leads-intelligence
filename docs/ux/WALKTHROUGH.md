@@ -7,7 +7,7 @@ Low-fidelity wireframes: `WIREFRAMES.md` (text wireframes, written before the UI
 ## Route map
 | Route | Title | Primary action | State |
 |---|---|---|---|
-| `/login` | Sign in | Continue as local operator / Sign in | Built |
+| `/login` | Set up sign-in (first run) / Sign in | Save passphrase and sign in / Sign in | Built. One-click sign-in was removed on the review branch. |
 | `/` | Find a business worth helping | Start investigation | Built |
 | `/discover` | Choose businesses to investigate | Add business; Investigate (per row) | Built for manual entry and synthetic examples. Automatic discovery, batch select and budget input are **not built** and say so on screen. |
 | `/investigations` | Investigations | Start investigation | Built |
@@ -19,7 +19,7 @@ Low-fidelity wireframes: `WIREFRAMES.md` (text wireframes, written before the UI
 | `/reports/[id]?view=owner` | same, owner preview | Approve owner version | Built: redaction summary, exact export text, download after approval |
 | `/outreach` | Start a relevant conversation | Approve this exact text | Built: copy-only. No send capability exists. |
 | `/outcomes` | Did our research create a conversation? | none | **Not built.** Page says so. |
-| `/settings` | Control sources, cost and privacy | none (read-only) | Built read-only, plus the audit trail |
+| `/settings` | Control sources, cost and privacy | none | Limits are read-only. Sign-in can be managed: sign out other sessions, change passphrase. Plus the audit trail. |
 | `/api/investigations/[id]` | JSON status, cost, errors | | Built (GET) |
 | `/api/reports/[id]/export` | approved owner Markdown | | Built (GET) |
 
@@ -61,3 +61,25 @@ Present by construction: skip link, visible focus outline, semantic headings/tab
 ## Screenshots (`docs/ux/screenshots/`, synthetic data only)
 01 sign-in · 02 home (empty) · 03 investigation ready for review · 04 evidence desk · 05 report source drawer · 06 evidence rejected · 07 source restricted (403) · 08 restricted note, internal view · 09 owner preview with redaction summary · 10 outreach draft · 11 blocked for identity · 12 retry failed source · 13 prompt-injection text shown inert (production CSP).
 Screenshots 01–12 predate the fixes above; 13 was taken after them.
+
+---
+
+## Review branch update (2026-11-18)
+Screens changed: sign-in (first-run setup, passphrase), Settings (new "Sign-in" card), report owner preview (now rendered only from the owner view; new rows in the redaction summary). Checked by the builder in a browser against a throwaway data folder; **not** a usability test with the operator.
+
+| Task | Result |
+|---|---|
+| 1. Start a mock investigation with no instructions | **Now has a one-time extra step.** First run asks for a setup code from a file and a new passphrase. After that: sign in → Discover → Investigate, as before. Time for a first-time human still not measured; this step will add to it. |
+| 5. Preview the owner-safe report | Re-done on the "page times out" example. Unknowns read "It was not found on the 2 page(s) inspected, but 1 page(s) could not be retrieved." No "Timed out", no "Retry", no internal IDs. Sources show address, a fixed status word and time. |
+
+Also exercised: wrong setup code refused; wrong passphrase refused and listed in the audit trail; `npm run auth:reset` returns the app to setup; a request with another site's host name gets "Misdirected request" (421).
+
+Issues
+| Issue | Severity | Status |
+|---|---|---|
+| First-run setup needs the operator to find and open a file | Medium (friction, by design) | Open. The page shows the path and says what to copy. |
+| The lockout message does not count down | Low | Open. It shows the time sign-in unlocks. |
+| The "Response and follow-up" journey row showed "Error" when a website page failed | Low (inaccurate) | Fixed: it now says "Not checked" unless an account was recorded. |
+| The owner preview used to show raw page excerpts that the export did not contain | Medium | Fixed: the preview shows exactly the owner view. |
+
+New screenshots: 14 Settings sign-in card · 15 sign-in refused · 16 and 17 first-run setup. They are 702 pixels wide because the browser pane was small. No screenshot of the new owner preview was taken; it was checked by reading the rendered page. Screenshots 01 (one-click sign-in) and 09 (owner preview) now show screens that have changed.

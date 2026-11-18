@@ -6,7 +6,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { signInMock } from '@/lib/auth';
 import { loadConfig } from '@/lib/config';
 import { MockRuleReasoner } from '@/lib/reasoning/reasoner';
 import { loadGoldenCase } from '@/lib/services/businesses';
@@ -16,6 +15,7 @@ import { approveReport, approveShare, decideOpportunity, getReportBundle } from 
 import { MockFixtureTransport } from '@/lib/sources/mock-transport';
 import { JsonFileStore } from '@/lib/store';
 import type { Ctx } from '@/lib/context';
+import { signInForTest } from './helpers';
 
 let dir = '';
 let runId = '';
@@ -28,7 +28,7 @@ beforeAll(async () => {
   process.env.OI_DATA_DIR = dir;
   const config = loadConfig(process.env);
   const store = new JsonFileStore(dir);
-  cookie = `oi_session=${signInMock(store, config, new Date())}`;
+  cookie = `oi_session=${signInForTest(store, config, new Date())}`;
   ctx = { store, config, actor: { userId: 'usr_local-operator', kind: 'human' }, now: () => new Date(), transport: new MockFixtureTransport(), reasoner: new MockRuleReasoner() };
   const [biz] = loadGoldenCase(ctx, 'private-group-note');
   const run = await startInvestigation(ctx, { businessId: biz!.id });

@@ -5,7 +5,7 @@ import { Badge, Caveats, Field, MockBadge, NoticeBanner, PageHeader, StatusBadge
 import { readNotice } from '@/lib/auth';
 import { isAppError } from '@/lib/errors';
 import { requireCtx } from '@/lib/runtime';
-import { getReportBundle, type EvidenceView, type OpportunityView, type ReportBundle, type ReportView } from '@/lib/services/reports';
+import { getReportBundle, type EvidenceView, type OpportunityView, type OwnerReportView, type ReportBundle, type ReportView } from '@/lib/services/reports';
 
 function SourceDrawer({ evidence, runId, internal }: { evidence: EvidenceView; runId: string; internal: boolean }) {
   return (
@@ -60,7 +60,7 @@ function SourceDrawer({ evidence, runId, internal }: { evidence: EvidenceView; r
 function Claim({ opp, view, bundle }: { opp: OpportunityView; view: ReportView; bundle: ReportBundle }) {
   const internal = view.audience === 'internal';
   const approved = bundle.report.status === 'approved_internal' || bundle.report.status === 'approved_to_share';
-  const ownerSafe = bundle.owner.opportunities.some((o) => o.id === opp.id);
+  const ownerSafe = bundle.ownerOpportunityIds.includes(opp.id);
   return (
     <article className="claim" aria-labelledby={`opp-${opp.id}`}>
       <h3 id={`opp-${opp.id}`}>
@@ -243,6 +243,170 @@ function Body({ view, bundle }: { view: ReportView; bundle: ReportBundle }) {
   );
 }
 
+/**
+ * The owner preview. It takes only the owner view, which is an allowlist, so
+ * no internal field (review notes, excerpts, diagnostics, IDs) can be shown here.
+ */
+function OwnerBody({ view }: { view: OwnerReportView }) {
+  return (
+    <>
+      <section className="card" aria-labelledby="exec-h">
+        <h2 id="exec-h">1. Executive finding</h2>
+        <p>{view.executiveFinding}</p>
+        <dl className="details">
+          <dt>Business</dt>
+          <dd>
+            {view.business.displayName}, {view.business.city}, {view.business.state}
+          </dd>
+          <dt>Website</dt>
+          <dd className="break">{view.business.domain ?? 'None on record'}</dd>
+          <dt>Identity check</dt>
+          <dd>{view.business.identity}</dd>
+          <dt>Investigated</dt>
+          <dd>
+            <Time iso={view.investigatedAt} />
+          </dd>
+        </dl>
+      </section>
+
+      <section className="card" aria-labelledby="journey-h">
+        <h2 id="journey-h">2. Observed customer journey</h2>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Step</th>
+                <th scope="col">Status</th>
+                <th scope="col">What was observed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.journey.map((j) => (
+                <tr key={j.step}>
+                  <td>{j.step}</td>
+                  <td>
+                    <Badge tone={j.state === 'Verified' ? 'ok' : j.state === 'Not checked' ? 'neutral' : j.state === 'Error' ? 'bad' : 'warn'}>{j.state}</Badge>
+                  </td>
+                  <td>{j.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="claims-h">
+        <h2 id="claims-h">3. Findings</h2>
+        {view.opportunities.length === 0 ? (
+          <div className="empty">
+            <p className="empty-title">No findings are included in the owner version.</p>
+            <p>Only findings you accepted, built entirely on accepted public evidence, are included.</p>
+          </div>
+        ) : (
+          view.opportunities.map((opp, i) => (
+            <article className="claim" key={`${i}-${opp.title}`}>
+              <h3>{opp.title}</h3>
+              <p className="claim-label">Observed fact</p>
+              <p>{opp.observedFact}</p>
+              {opp.evidence.map((e) => (
+                <details key={e.shortId}>
+                  <summary>
+                    View source: <span className="mono">{e.shortId}</span> {e.observation.slice(0, 70)}
+                    {e.observation.length > 70 ? '…' : ''}
+                  </summary>
+                  <p>{e.observation}</p>
+                  <dl className="details">
+                    <dt>Observed</dt>
+                    <dd>
+                      <Time iso={e.observedAt} />
+                      {e.stale ? ' · old; not a statement about the present' : ''}
+                    </dd>
+                    <dt>Confidence</dt>
+                    <dd>
+                      <StatusBadge status={e.confidence} /> {e.rationale}
+                    </dd>
+                    <dt>Source</dt>
+                    <dd>
+                      <ul>
+                        {e.sources.map((s, n) => (
+                          <li key={`${s.url ?? 'none'}-${n}`} className="break">
+                            {s.label}
+                            {s.url ? `: ${s.url}` : ' (no link recorded)'}
+                          </li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </dl>
+                  <Caveats caveats={e.caveats} />
+                </details>
+              ))}
+              <p className="claim-label">Why it might matter (hypothesis, not established)</p>
+              <p>{opp.interpretation}</p>
+              <p className="claim-label">Other explanations</p>
+              <ul>
+                {opp.alternatives.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+              <p className="claim-label">Confidence in the observation</p>
+              <p>
+                <StatusBadge status={opp.confidence} /> This rates how directly the fact was observed. It is not an estimate of business impact.
+              </p>
+              <Caveats caveats={opp.caveats} />
+            </article>
+          ))
+        )}
+      </section>
+
+      <section className="card" aria-labelledby="unknown-h">
+        <h2 id="unknown-h">4. What we could not verify</h2>
+        <ul>
+          {view.unknowns.map((u) => (
+            <li key={u.question}>
+              <strong>{u.question}</strong> {u.reason}
+            </li>
+          ))}
+          <li>
+            <strong>How calls, voicemails and requests are handled inside the business is unknown.</strong> Nothing here was tested by calling, booking or submitting a form. Only the owner can confirm it.
+          </li>
+        </ul>
+      </section>
+
+      <section className="card" aria-labelledby="questions-h">
+        <h2 id="questions-h">5. Owner questions</h2>
+        {view.ownerQuestions.length === 0 ? <p className="muted">None, because no finding is included.</p> : <ul>{view.ownerQuestions.map((q) => <li key={q}>{q}</li>)}</ul>}
+      </section>
+
+      <section className="card" aria-labelledby="fix-h">
+        <h2 id="fix-h">6. Possible improvements</h2>
+        {view.possibleImprovements.length === 0 ? <p className="muted">None proposed. A fix is only suggested after a gap is substantiated.</p> : <ul>{view.possibleImprovements.map((p) => <li key={p}>{p}</li>)}</ul>}
+        <p className="small muted">Each depends on the owner confirming the gap. The right answer may be no automation at all.</p>
+      </section>
+
+      <section className="card" aria-labelledby="method-h">
+        <h2 id="method-h">7. Methodology and limitations</h2>
+        <ul>
+          {view.methodology.map((m) => (
+            <li key={m}>{m}</li>
+          ))}
+        </ul>
+        <h3>Pages of the business website ({view.sources.length})</h3>
+        {view.sources.length === 0 ? (
+          <p className="muted">No public source was inspected.</p>
+        ) : (
+          <ul>
+            {view.sources.map((s, i) => (
+              <li key={`${s.url}-${i}`} className="break">
+                {s.url} · {s.status} · <Time iso={s.retrievedAt} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
+  );
+}
+
 export default async function ReportPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ view?: string; n?: string }> }) {
   const ctx = await requireCtx();
   const { id } = await params;
@@ -363,12 +527,20 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
               <dt>Observations withheld</dt>
               <dd>{bundle.redaction.evidenceWithheld} (restricted, personal, unreviewed, rejected, or not confirmed to be about this business)</dd>
               <dt>Sources withheld</dt>
-              <dd>{bundle.redaction.sourcesWithheld} (manual research notes are never listed in the owner version)</dd>
+              <dd>{bundle.redaction.sourcesWithheld} (manual research notes, and any page not on the business&apos;s own website, are never listed in the owner version)</dd>
+              <dt>Unknowns withheld</dt>
+              <dd>{bundle.redaction.unknownsWithheld} (kept internal because they are not in a form known to be safe to share)</dd>
+              <dt>Third-party observations included</dt>
+              <dd>
+                {bundle.redaction.thirdPartyObservationsIncluded === 0
+                  ? 'None'
+                  : `${bundle.redaction.thirdPartyObservationsIncluded}. These paraphrase a public page that is not the business's own. Check that site's terms before you share this.`}
+              </dd>
             </dl>
             <p className="small muted">The owner version fails closed: anything not positively classified as public and accepted is left out, and a finding that rests on any withheld evidence is left out entirely.</p>
           </section>
 
-          <Body view={bundle.owner} bundle={bundle} />
+          <OwnerBody view={bundle.owner} />
 
           <section className="card" aria-labelledby="exact-h">
             <h2 id="exact-h">Exact text of the owner version</h2>

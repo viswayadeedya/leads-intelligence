@@ -5,7 +5,7 @@
 // page was inspected successfully. Otherwise the question becomes an Unknown.
 
 import { sha256 } from '../ids';
-import type { Caveat, Confidence, Evidence, EvidenceType, Polarity, Sensitivity, SourceRecord, Unknown } from '../types';
+import type { Caveat, Confidence, Evidence, EvidenceType, Polarity, Sensitivity, SourceRecord, Unknown, UnknownTopic } from '../types';
 
 export type EvidenceCandidate = Pick<
   Evidence,
@@ -76,6 +76,11 @@ export function aggregateWebsiteEvidence(input: {
         question: 'How customers can contact or book through the website is unknown.',
         reason: `The website could not be inspected (${failed.map((r) => `${pathOf(r)}: ${r.accessDetail}`).join('; ')}). This is not a finding about the business.`,
         sourceRecordIds: failed.map((r) => r.id),
+        kind: 'website_not_inspected',
+        topic: null,
+        inspectedCount: 0,
+        unreachedPlannedCount: 0,
+        budgetExhausted: input.budgetExhausted,
       });
     }
     return { evidence, unknowns };
@@ -190,7 +195,7 @@ export function aggregateWebsiteEvidence(input: {
   }
 
   // --- absence observations or unknowns --------------------------------
-  const absenceChecks: { type: EvidenceType; present: boolean; thing: string; question: string }[] = [
+  const absenceChecks: { type: UnknownTopic; present: boolean; thing: string; question: string }[] = [
     { type: 'booking_link', present: withBooking.length > 0, thing: 'booking or appointment-request link', question: 'Whether the website offers online booking is unknown.' },
     { type: 'contact_form', present: withForm.length > 0, thing: 'contact form', question: 'Whether the website has a contact form is unknown.' },
     { type: 'after_hours_statement', present: withAfterHours.length > 0, thing: 'statement about after-hours or emergency availability', question: 'Whether the website describes after-hours availability is unknown.' },
@@ -214,6 +219,11 @@ export function aggregateWebsiteEvidence(input: {
         question: check.question,
         reason: `Not found on the ${m} page(s) that were inspected, but ${why.join(' and ')}. "Not found on inspected pages" does not mean it does not exist.`,
         sourceRecordIds: failed.map((r) => r.id),
+        kind: 'feature_not_concluded',
+        topic: check.type,
+        inspectedCount: m,
+        unreachedPlannedCount: missingPlanned.length,
+        budgetExhausted: input.budgetExhausted,
       });
     }
   }

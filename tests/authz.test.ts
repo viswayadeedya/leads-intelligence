@@ -2,7 +2,7 @@
 // access (IDOR) and CSRF origin checks.
 
 import { describe, expect, it } from 'vitest';
-import { parseCookieHeader, resolveSession, signInMock, signInWithPassphrase, signOut } from '@/lib/auth';
+import { parseCookieHeader, resolveSession, signOut } from '@/lib/auth';
 import { loadConfig } from '@/lib/config';
 import { buildCsp, isPublicPath, isSameOrigin, isStateChanging } from '@/lib/security/origin';
 import { confirmIdentity, createBusiness, getBusiness, listBusinesses, resolveDuplicate } from '@/lib/services/businesses';
@@ -11,14 +11,14 @@ import { cancelInvestigation, getRunDetail, listRuns, resumeInvestigation, retry
 import { approveOutreach, createOutreachDraft, listOutreach, logDraftCopied, markSentManually, saveOutreachDraft } from '@/lib/services/outreach';
 import { approveReport, approveShare, decideOpportunity, exportOwnerReport, getReportBundle, listReports } from '@/lib/services/reports';
 import { MemoryStore } from '@/lib/store';
-import { liveOpps, makeCtx, NOW, runGolden } from './helpers';
+import { liveOpps, makeCtx, NOW, runGolden, signInForTest } from './helpers';
 
 describe('sessions', () => {
   const config = loadConfig({});
 
   it('anonymous or forged tokens resolve to no actor', () => {
     const store = new MemoryStore();
-    signInMock(store, config, NOW);
+    signInForTest(store, config, NOW);
     for (const token of [undefined, null, '', 'short', 'x'.repeat(43), 'a'.repeat(300)]) {
       expect(resolveSession(store, NOW, token)).toBeNull();
     }
@@ -26,7 +26,7 @@ describe('sessions', () => {
 
   it('a valid session resolves to the human operator, expires, and is invalidated by sign-out', () => {
     const store = new MemoryStore();
-    const token = signInMock(store, config, NOW);
+    const token = signInForTest(store, config, NOW);
     expect(resolveSession(store, NOW, token)).toEqual({ userId: 'usr_local-operator', kind: 'human' });
     const later = new Date(NOW.getTime() + (config.sessionTtlMinutes + 1) * 60_000);
     expect(resolveSession(store, later, token)).toBeNull();
@@ -36,20 +36,8 @@ describe('sessions', () => {
 
   it('stores only a hash of the session token', () => {
     const store = new MemoryStore();
-    const token = signInMock(store, config, NOW);
+    const token = signInForTest(store, config, NOW);
     expect(JSON.stringify(store.snapshot())).not.toContain(token);
-  });
-
-  it('one-click mock sign-in is disabled once a passphrase is configured; wrong passphrases are rate limited', () => {
-    const store = new MemoryStore();
-    const locked = loadConfig({ OPERATOR_PASSPHRASE: 'correct horse battery staple' });
-    expect(() => signInMock(store, locked, NOW)).toThrowError(/passphrase/);
-    for (let i = 0; i < 5; i++) {
-      expect(() => signInWithPassphrase(store, locked, NOW, 'wrong', 'correct horse battery staple', 'client-1')).toThrowError(/not accepted/);
-    }
-    expect(() => signInWithPassphrase(store, locked, NOW, 'correct horse battery staple', 'correct horse battery staple', 'client-1')).toThrowError(/Too many/);
-    const token = signInWithPassphrase(store, locked, NOW, 'correct horse battery staple', 'correct horse battery staple', 'client-2');
-    expect(resolveSession(store, NOW, token)).not.toBeNull();
   });
 
   it('parses the session cookie from a raw header', () => {

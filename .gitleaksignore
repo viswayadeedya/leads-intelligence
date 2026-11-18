@@ -1,0 +1,10 @@
+# Findings in git HISTORY that were reviewed and are not secrets.
+# One fingerprint per line. Add a line only after reading the finding, and say why.
+#
+# Commit 22068db, scripts/check-client-bundle.mjs: canary values. The script
+# builds the app with these made-up strings as "secrets" and then proves none
+# of them reaches the browser bundle. They unlock nothing. (In later commits
+# the same lines carry an inline gitleaks:allow marker instead.)
+22068dba46f8151ee99dbf0e1c5b111b9847c81d:scripts/check-client-bundle.mjs:generic-api-key:11
+22068dba46f8151ee99dbf0e1c5b111b9847c81d:scripts/check-client-bundle.mjs:generic-api-key:12
+22068dba46f8151ee99dbf0e1c5b111b9847c81d:scripts/check-client-bundle.mjs:generic-api-key:13

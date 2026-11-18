@@ -6,11 +6,14 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+// Made-up marker strings, not credentials: they unlock nothing. A secret
+// scanner flags three of them because of the variable names, so those lines
+// carry an explicit marker.
 const CANARIES = {
   SUPABASE_SERVICE_ROLE_KEY: 'canary-service-role-9f3a61',
-  SUPABASE_ANON_KEY: 'canary-anon-key-2b7e40',
-  LLM_API_KEY: 'canary-llm-key-77c1d2',
-  GOOGLE_PLACES_API_KEY: 'canary-places-key-c05a19',
+  SUPABASE_ANON_KEY: 'canary-anon-key-2b7e40', // gitleaks:allow (canary, not a key)
+  LLM_API_KEY: 'canary-llm-key-77c1d2', // gitleaks:allow (canary, not a key)
+  GOOGLE_PLACES_API_KEY: 'canary-places-key-c05a19', // gitleaks:allow (canary, not a key)
   DATABASE_URL: 'canary-database-url-e41b88',
   OPERATOR_PASSPHRASE: 'canary-passphrase-51de07',
 };

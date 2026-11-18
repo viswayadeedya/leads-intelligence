@@ -12,13 +12,111 @@ A reviewer can inspect repository and packet directly when provided access; do n
 
 ---
 
+# Review branch `review/milestone-1-hardening` — 2026-11-18
+
+**Read this section first; it supersedes parts of "Milestone 1" below where they conflict.** Verdict requested: PASS / CONDITIONAL / FAIL on this branch before it is merged. The builder does not certify security or results.
+
+## R1. Commit and changed files
+- **Branch:** `review/milestone-1-hardening`, one commit on top of `main` (`22068db`). Print it with `git log --oneline main..review/milestone-1-hardening`. **Not pushed. Not merged. Nothing deployed.**
+- **Diff to review:** `git diff main...review/milestone-1-hardening`.
+- A remote (`origin`) exists and `main` is published there. That was done by the owner, not by the builder. The untracked file `AGENTS.md` was not created by the builder and is not in this commit.
+- New: `src/lib/security/passphrase.ts`; `tests/{owner-view-audit,semantic-claims,live-fetch-controlled,auth-hardening}.test.ts`; `tests/lab/controlled-net.ts`; `scripts/{gitleaks-scan,auth-reset}.mjs`; `.gitleaks.toml`; `.gitleaksignore`; `.githooks/pre-commit`; four screenshots; `docs/delivery/test-evidence/owner-view-audit-BEFORE-fix.txt`.
+- Changed: `src/lib/{auth,config,runtime,types}.ts`; `src/lib/security/{safe-fetch,origin}.ts`; `src/lib/reasoning/verifier.ts`; `src/lib/services/{reports,analysis,outreach,investigations}.ts`; `src/lib/sources/website-evidence.ts`; `src/proxy.ts`; `src/app/{actions.ts,login/page.tsx,settings/page.tsx,reports/[id]/page.tsx}`; scripts, `.gitignore`, `.env.example`, `package.json`; existing tests adjusted where behaviour changed on purpose; delivery and UX documents; regenerated sample reports.
+
+## R2. What the review found and what changed
+| # | Question asked | Answer | Evidence |
+|---|---|---|---|
+| 1 | Does `buildOwnerView` leak private information through `run.unknowns` (question and reason)? | **Yes.** Both fields were copied verbatim into the owner view and the export. In existing code paths the text that leaked was internal fetch diagnostics; a planted restricted note leaked verbatim. Fixed: owner wording is rebuilt from structured fields; free text is never printed. | `tests/owner-view-audit.test.ts` (first describe); failing run on the old code in `test-evidence/owner-view-audit-BEFORE-fix.txt` |
+| 2 | What else reaches an owner that should not? | Access-detail text, raw excerpts, the operator's decision note, review-state wording, internal IDs, and (most serious) restricted text paraphrased by the reasoner into a claim that cites only public evidence. All fixed; the owner view is now an allowlist type. | Taint-sweep tests plant a marker in every internal free-text field (more than 40 fields per case) for seven golden cases and require none to come out |
+| 3 | Do claims survive adversarial paraphrase? | Many did. The verifier was a short keyword list. It now has about twenty rule families; about 80 paraphrased overclaims are rejected. **Seven kinds still get through and are listed as tests.** | `tests/semantic-claims.test.ts` parts 1 and 2 |
+| 4 | Is human approval still mandatory? | Yes, and it is now tested as a chain: four separate human actions before anything is exportable; non-human actors refused at every step; reasoner output cannot approve itself; rewording withdraws approval. | `tests/semantic-claims.test.ts` part 3 |
+| 5 | Does the live fetcher hold up against real servers? | It had seven defects (listed in BUILD_LOG section 3), two of which would have produced false "not found" observations and one of which could attribute another site's content to the business. Fixed. | `tests/live-fetch-controlled.test.ts`, 111 tests, real sockets, loopback only |
+| 6 | Is general live research enabled? | **No.** A second lock was added and is tested. | Last describe in the same file |
+| 7 | Operator authentication | One-click sign-in removed; setup code + hashed passphrase; global lockout (the old limiter could be reset by changing a header); idle timeout; host-name check against DNS rebinding. | `tests/auth-hardening.test.ts`, 55 tests; browser check in BUILD_LOG |
+| 8 | Established secret scanner | gitleaks 8.30.1 in `npm run verify`. Published history: only three known canary strings. | `scripts/gitleaks-scan.mjs`, `.gitleaks.toml`, `.gitleaksignore` |
+
+## R3. Commands and results
+```
+npm install
+npm run verify      # exit 0; needs gitleaks >= 8.25 on PATH (Windows: winget install --id Gitleaks.Gitleaks -e)
+```
+| Check | Result |
+|---|---|
+| typecheck | pass |
+| lint | 74 files, 0 errors, 0 warnings |
+| tests | 13 files, 461 passed, 0 failed, 0 skipped |
+| gitleaks, git history (all branches) | 0 findings (3 canaries recorded in `.gitleaksignore`) |
+| gitleaks, working folder | 0 findings |
+| project-rule scan | 0 findings |
+| client bundle canary check | 0 findings in 14 files |
+| `npm audit --omit=dev` | 0 vulnerabilities |
+| `npm audit` (dev tools) | unchanged: 16 high, all the picomatch advisory in test/lint tooling |
+
+Output: `docs/delivery/test-evidence/verify-output.txt`. Every test by name: `vitest-verbose.txt`. Screenshots 14 to 17: `docs/ux/screenshots/`.
+
+To reproduce the leak on the old code: check out `main` in a second worktree, copy `tests/owner-view-audit.test.ts` from this branch into it, and run that file. 21 of 24 tests fail there.
+
+## R4. Sample report
+`docs/examples/SAMPLE_MOCK_REPORT_OWNER.md` and `SAMPLE_MOCK_REPORT_INTERNAL.json` were regenerated. The owner version now lists each source as address, fixed status word and time, and names the kind of source under each observation. Still synthetic.
+
+## R5. Source adapter coverage (website adapter)
+| Case from `SOURCE_IMPLEMENTATION_CONTRACTS.md` | Mock fixtures | Controlled servers (real sockets) |
+|---|---|---|
+| success | yes | yes |
+| empty | no fixture | yes (empty body, empty site) |
+| restricted (401/403/407/451, robots, challenge) | yes | yes |
+| rate limit (429) | no | yes (fetcher level; reported restricted, not retried) |
+| timeout, and retry | yes | yes |
+| wrong business | yes | redirect to another site: yes |
+| duplicate | yes | not applicable |
+| malicious content | yes | yes |
+| unexpected schema | no | yes (malformed HTTP, wrong type, wrong encoding) |
+| budget exhaustion | yes | yes |
+
+**"Live tested" does not apply to anything.** The controlled servers are on this machine. No real third-party site has been requested.
+
+## R6. Security negative tests: what changed since Milestone 1
+| # | Requirement | Change |
+|---|---|---|
+| 1 | Anonymous cannot read | Sessions now require a credential. Forged cookie: API 401; page streams a shell then redirects (HTTP 200, no protected content; see BUILD_LOG "surprises" 5). |
+| 3 | Secrets not in bundle, logs, repo | gitleaks now runs on history and working folder. |
+| 4 | Fetch rejects internal targets, redirects, rebinding, oversized | Now also exercised with real sockets against controlled servers, with a canary that must never be reached. **Still no egress network restriction.** |
+| 5 | Injected instructions cannot trigger action | Also run through the real fetch path. Still no real model. |
+| 7 | Restricted notes absent from exports | The earlier pass was incomplete: it did not cover unknowns or reasoner-written text. Both are now covered. |
+| 8 | Unapproved outbound action fails | Unchanged; chain test added. |
+| 9 | Malicious HTML escaped | Claims containing markup are now also rejected by the verifier. |
+| 11 | CSRF | Host-name check added in front of the origin check. |
+| 12 | CI | **Still not met: there is no CI.** |
+
+### Unresolved vulnerabilities and residual risks (replaces the Milestone 1 list)
+1. No second factor. Single passphrase; lockout is global, so a local attacker can lock sign-in for 15 minutes at a time (sessions already open keep working).
+2. The data file is plain JSON. It now also holds the passphrase hash. Any program running as the same operating-system user can read it and the setup code file.
+3. `OPERATOR_PASSPHRASE`, if used, is plain text in the environment.
+4. No egress restriction, no per-IP rate limiting, no retention or deletion, no CI.
+5. The verifier cannot judge meaning. Seven known kinds of overclaim pass it. Human review is the control that matters.
+6. Two-context reasoning has never been run with an LLM, and a public-only claim can omit a contradicting restricted observation.
+7. The fetcher has a test seam (`dial`, `ca`) in production code. A test fails the build if application code uses it; it is still code that exists.
+8. Excerpts are still not screened for personal data. They no longer reach the owner view, but they are stored and shown internally.
+9. RLS policies remain an unapplied SQL file. Dev-tooling advisories remain unfixed.
+10. The commit already published on `origin/main` contains the one-click sign-in code and the unfixed owner view. It is mock-only code with no real data, but anyone running `main` gets those weaknesses until this branch is merged.
+
+## R7. Open product assumptions (additions)
+- That an operator will read the redaction summary before approving the owner text. It now carries two more numbers.
+- That the stricter verifier does not reject too many honest claims from a real model. Unknown until one is connected; every rejection is logged with its code so this can be measured.
+- That first-run setup (open a file, paste a code) is acceptable friction. It adds a step to "start a mock investigation in under 60 seconds".
+
+## R8. One recommended next action
+Review and merge this branch before anyone else runs `main`. Then decide the third-party comment policy; that is now the only open item that affects what an owner could be shown.
+
+---
+
 # Milestone 1 — Phase 0 + Phase 1 (mock vertical slice) — 2026-11-18
 
 **Verdict requested from reviewer:** PASS / CONDITIONAL / FAIL per `REVIEWER_CHECKLIST.md`. The builder does not certify security or results. Everything below is evidence to check, with paths.
 
 ## 1. Commit hash and changed files
-- **Commit: the root commit of `main`** (print the hash with `git rev-list --max-parents=0 HEAD`; a commit cannot contain its own hash). The repository was initialised locally on 2026-11-18 at the owner's request. No remote exists and nothing was pushed. The whole milestone is one commit, so there is no incremental diff to review; review the tree.
-- **Pre-commit sensitive-data review:** see the second 2026-11-18 entry in `BUILD_LOG.md`. One finding (the local project path, containing an OS account name, in two captured test-output files) was fixed before committing. **No established secret scanner was run** (none is installed); the stopgap script and manual pattern searches over the staged files found nothing else.
+- **Commit: the root commit of `main`** (print the hash with `git rev-list --max-parents=0 HEAD`; a commit cannot contain its own hash). The repository was initialised locally on 2026-11-18 at the owner's request. When this was written no remote existed; the owner has since published `main`. The whole milestone is one commit, so there is no incremental diff to review; review the tree.
+- **Pre-commit sensitive-data review:** see the second 2026-11-18 entry in `BUILD_LOG.md`. One finding (the local project path, containing an OS account name, in two captured test-output files) was fixed before committing. No established secret scanner had been run at that point. gitleaks has since been run over this commit: three findings, all canary strings (see "Review branch" above).
 - Changed files: full list in `BUILD_LOG.md` (2026-11-18 entry). Pre-existing files edited: `README.md`, `.gitignore`, `.env.example`, `docs/delivery/{BUILD_LOG,DECISIONS,CLAUDE_REVIEW_PACKET}.md`, `docs/security/SECURITY_REVIEW_CHECKLIST.md` (evidence appended, original text untouched). No other specification document was changed.
 
 ## 2. What genuinely works, what is mocked, what is planned

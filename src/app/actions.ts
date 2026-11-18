@@ -4,13 +4,13 @@
 // the session (requireCtx), calls an owner-scoped service, and redirects to a
 // path built from server-known IDs (never from a client-supplied URL).
 
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { setNotice, SESSION_COOKIE, signInMock, signInWithPassphrase, signOut } from '@/lib/auth';
+import { changePassphrase, completeSetup, setNotice, SESSION_COOKIE, signIn, signOut, signOutEverywhere } from '@/lib/auth';
 import type { Ctx } from '@/lib/context';
 import { isAppError } from '@/lib/errors';
 import { logEvent } from '@/lib/log';
-import { getConfig, getStore, requireCtx } from '@/lib/runtime';
+import { getConfig, getSetupSink, getStore, requireCtx } from '@/lib/runtime';
 import { confirmIdentity, createBusiness, loadGoldenCase, resolveDuplicate } from '@/lib/services/businesses';
 import { addManualEvidence, getEvidenceDesk, reviewEvidence } from '@/lib/services/evidence';
 import { cancelInvestigation, resumeInvestigation, retryFailedSources, startInvestigation } from '@/lib/services/investigations';
@@ -63,27 +63,38 @@ async function setSessionCookie(token: string): Promise<void> {
   });
 }
 
-export async function signInMockAction(): Promise<void> {
-  let ok = false;
-  try {
-    await setSessionCookie(signInMock(getStore(), getConfig(), new Date()));
-    ok = true;
-  } catch (e) {
-    if (!isAppError(e)) throw e;
-  }
-  redirect(ok ? '/' : '/login?e=passphrase_required');
+/** Error codes shown on the sign-in page. Only fixed messages are displayed; no detail about why a secret failed. */
+function signInFailure(e: unknown): string {
+  if (!isAppError(e)) throw e;
+  if (e.code === 'rate_limited') return 'locked';
+  if (e.code === 'validation') return 'weak';
+  if (e.code === 'forbidden') return 'unavailable';
+  return 'bad';
 }
 
-export async function signInPassphraseAction(form: FormData): Promise<void> {
-  const h = await headers();
-  const clientKey = h.get('x-forwarded-for') ?? 'local';
-  let outcome = 'bad';
+/** First run: one-time setup code from the data folder, plus a passphrase the operator chooses. */
+export async function setupAction(form: FormData): Promise<void> {
+  let outcome = 'ok';
   try {
-    await setSessionCookie(signInWithPassphrase(getStore(), getConfig(), new Date(), str(form, 'passphrase'), process.env.OPERATOR_PASSPHRASE, clientKey));
-    outcome = 'ok';
+    const token = completeSetup(getStore(), getConfig(), process.env, new Date(), getSetupSink(), {
+      code: str(form, 'code'),
+      passphrase: str(form, 'passphrase'),
+      confirm: str(form, 'confirm'),
+    });
+    await setSessionCookie(token);
   } catch (e) {
-    if (!isAppError(e)) throw e;
-    outcome = e.code === 'rate_limited' ? 'rate_limited' : 'bad';
+    outcome = signInFailure(e);
+    if (outcome === 'weak' && isAppError(e) && /match/.test(e.message)) outcome = 'mismatch';
+  }
+  redirect(outcome === 'ok' ? '/' : `/login?e=${outcome}`);
+}
+
+export async function signInAction(form: FormData): Promise<void> {
+  let outcome = 'ok';
+  try {
+    await setSessionCookie(signIn(getStore(), getConfig(), process.env, new Date(), str(form, 'passphrase')));
+  } catch (e) {
+    outcome = signInFailure(e);
   }
   redirect(outcome === 'ok' ? '/' : `/login?e=${outcome}`);
 }
@@ -93,6 +104,27 @@ export async function signOutAction(): Promise<void> {
   signOut(getStore(), jar.get(SESSION_COOKIE)?.value);
   jar.delete(SESSION_COOKIE);
   redirect('/login');
+}
+
+export async function signOutEverywhereAction(): Promise<void> {
+  await act('/settings', async (ctx) => {
+    const jar = await cookies();
+    const ended = signOutEverywhere(ctx.store, ctx.now(), jar.get(SESSION_COOKIE)?.value);
+    return { to: '/settings', ok: `${ended} other session(s) ended. This one stays signed in.` };
+  });
+}
+
+export async function changePassphraseAction(form: FormData): Promise<void> {
+  await act('/settings', async (ctx) => {
+    const jar = await cookies();
+    changePassphrase(ctx.store, process.env, ctx.now(), {
+      current: str(form, 'current'),
+      next: str(form, 'next'),
+      confirm: str(form, 'confirm'),
+      keepToken: jar.get(SESSION_COOKIE)?.value,
+    });
+    return { to: '/settings', ok: 'Passphrase changed. Every other session was signed out.' };
+  });
 }
 
 export async function createBusinessAction(form: FormData): Promise<void> {

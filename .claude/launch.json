@@ -26,6 +26,20 @@
         "3211"
       ],
       "port": 3211
+    },
+    {
+      "name": "opportunity-intelligence-verify",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/run-next.mjs",
+        "dev",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "3212",
+        "--oi-data-dir=.data-verify"
+      ],
+      "port": 3212
     }
   ]
 }

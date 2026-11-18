@@ -1,0 +1,11 @@
+#!/bin/sh
+# Blocks a commit when the secret scan finds something.
+# Not active until you run, once:  npm run hooks:install
+# (that sets this repository's hooks folder to .githooks; undo with
+#  git config --unset core.hooksPath)
+node scripts/gitleaks-scan.mjs && node scripts/secret-scan.mjs
+status=$?
+if [ "$status" -ne 0 ]; then
+  echo "pre-commit: secret scan failed; commit stopped. Nothing was committed." >&2
+  exit 1
+fi

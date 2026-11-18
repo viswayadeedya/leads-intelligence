@@ -88,3 +88,45 @@ Plain CSS (no UI framework); `parse5` for HTML parsing; `zod` for boundary valid
 **Tracked on purpose:** `.claude/launch.json` (local dev-server definitions, no secrets); `docs/ux/screenshots/` and `docs/examples/` (synthetic only); `docs/delivery/test-evidence/` (captured output with the local path replaced by `<repo>`).
 **Implication for future work:** real research data must never be placed under `src/fixtures/` or `docs/examples/`; those folders are tracked. Captured command output must be sanitized before it is saved under `docs/`; the stopgap scanner now fails on local user-directory paths.
 **Not done:** no established secret scanner (gitleaks) has been run; none is installed.
+
+---
+Entries below: 2026-11-18, review branch `review/milestone-1-hardening`. Each is reversible.
+
+## ADR-018 — The owner view is an allowlist type; unknowns are structured
+**Decision:** `OwnerReportView` is a separate type built field by field in `buildOwnerView`. Nothing is spread or copied from the internal view. Unknowns carry `kind`, `topic` and counts; the owner wording is rebuilt from those and from the access status of the referenced records. Stored free text (`question`, `reason`, `accessDetail`, excerpts, notes) is never printed for an owner.
+**Why:** the previous owner view reused the internal type and passed `run.unknowns` through verbatim. Review found seven kinds of internal text reaching owner output.
+**Trade-off:** owner unknowns are less specific (they no longer name the page or say why it failed). An unknown written by future code without the structured fields is silently withheld and only counted; the redaction summary shows the count.
+**Supersedes:** the part of ADR-013 that described the owner view as a filtered internal view.
+**Evidence:** `tests/owner-view-audit.test.ts`.
+
+## ADR-019 — Reasoning runs in two contexts
+**Decision:** claims that may reach an owner are written in a pass that is shown only public observations and can cite only those. A second pass, run only when restricted evidence exists, sees everything; from it only claims that cite restricted evidence are kept, marked `includes_restricted`, and never shared. A claim with no recorded context is not shareable.
+**Why:** checking cited evidence IDs does not stop a model from paraphrasing a restricted note into a claim that cites public evidence.
+**Cost:** a second reasoner call when restricted evidence exists. **Limits:** exercised only with rule-based and scripted reasoners; a public-only claim can omit a restricted observation that contradicts it.
+
+## ADR-020 — The verifier fails closed on wording, and its gaps are written down as tests
+**Decision:** about twenty rule families over normalised English text (see `verifier.ts`). Interpretations must be hedged; fixes must be conditional; absence claims are checked sentence by sentence and feature by feature. Text with invisible characters, mixed alphabets or markup is refused rather than interpreted.
+**Trade-off:** honest claims that use a listed word are rejected (and logged with a code). That costs findings, never publishes one. The false-rejection rate with a real model is unknown.
+**Known gaps** are asserted as passing tests in `tests/semantic-claims.test.ts` part 2, so they stay visible. Extends ADR-010.
+
+## ADR-021 — Live fetching stays locked; it is tested against controlled servers only
+**Decision:** `config.liveFetchUnlocked` is always false from `loadConfig`, with no environment variable. Investigations refuse a non-synthetic transport without it. The fetcher gained a test seam (`createPinnedRequest({ dial, ca })`) so tests can point validated public-looking addresses at servers on 127.0.0.1.
+**Fetcher rules added:** redirects stay on the requested host (with or without `www.`) by default; HTTPS never falls back to HTTP; compressed, non-UTF-8/Latin-1, binary and empty bodies are not inspected pages; failures are categorised.
+**Residual risk:** the seam is production code. A test fails if application code uses it. Egress restriction is still absent and still required before live mode (ADR-006 stands).
+
+## ADR-022 — Operator sign-in: setup code, hashed passphrase, global lockout, host-name check
+**Decision:** one-click sign-in is removed. First run needs a one-time code written to the data folder plus a chosen passphrase (12+ characters), stored as scrypt (N=2^15, r=8, p=3). Lockout after 5 failures in 15 minutes is global. Sessions have an idle limit, a cap, and can be ended together. The proxy refuses unknown `Host` headers.
+**Alternatives considered:** printing the code to the console (puts a secret in logs); trust-on-first-use with no code (whoever reaches the port first owns the app); keeping one-click behind a flag (a flag that removes authentication is a liability).
+**Supersedes ADR-007.** Open question 3 below ("is one-click acceptable") is closed by the owner's instruction to harden sign-in.
+**Residual risks:** no second factor; a local attacker can cause repeated 15-minute lockouts; the code file and data file are readable by the same operating-system user; `OPERATOR_PASSPHRASE` remains a plain-text override; a forgotten passphrase needs `npm run auth:reset` on the machine.
+
+## ADR-023 — gitleaks is the secret scanner; a missing scanner fails the check
+**Decision:** `npm run secret-scan` runs gitleaks (>= 8.25) over all git history and the working folder, then the project-rule script. Default rules are all kept. Deliberate fakes are marked at the line or by fingerprint with a reason; no source folder is allowlisted.
+**Trade-off:** `npm run verify` now needs a separately installed binary. Chosen over an npm-installed scanner because gitleaks is what the security protocol names.
+**Not done:** the pre-commit hook exists but is not enabled; there is no CI. Replaces the "stopgap" part of ADR-016.
+
+## Open questions that are the owner's to decide (current)
+1. **Third-party comments in owner reports** (unchanged, still open). The owner preview now shows how many such observations a report includes.
+2. **Phase 2 go-ahead** (unchanged, still open).
+3. ~~One-click local sign-in~~ Closed: removed.
+4. **Merge of `review/milestone-1-hardening` into `main`**, and whether to enable the pre-commit hook and add CI.

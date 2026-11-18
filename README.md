@@ -30,14 +30,19 @@ No credentials are needed. The app runs in **mock mode only**: website checks re
 
 ```
 npm install
-npm run dev          # http://127.0.0.1:3210 (localhost only), then "Continue as local operator"
+npm run dev          # http://127.0.0.1:3210 (this computer only)
 npm run verify       # typecheck + lint + tests + secret scan + client-bundle check + prod dependency audit
 ```
+
+**First run:** the sign-in page shows "Set up sign-in". Open `.data/setup-code.txt`, paste the code, and choose a passphrase (12 characters or more). Only a salted hash of it is stored. Forgot it? Stop the app and run `npm run auth:reset`; research data is kept.
+
+**`npm run verify` needs gitleaks** (8.25 or newer) installed: `winget install --id Gitleaks.Gitleaks -e` on Windows, `brew install gitleaks` on macOS. Without it the secret scan fails rather than being skipped. `npm run hooks:install` turns on a pre-commit hook that runs the same scan (off by default).
 
 Individual checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run secret-scan`, `npm run check:bundle`, `npm run audit`. Production mode: `npm run build` then `npm start`.
 
 - Data lives in `.data/db.json` (untracked). Delete that folder to start clean.
-- To require a passphrase, set `OPERATOR_PASSPHRASE` in an untracked `.env.local`. All settings are listed in `.env.example`.
+- All settings are listed in `.env.example`. `OPERATOR_PASSPHRASE` is an optional plain-text override of the stored passphrase; leave it empty for normal use.
+- The app answers only to `localhost`, `127.0.0.1` and `[::1]`. Other host names are refused unless listed in `OI_ALLOWED_HOSTS`.
 - What works, what is mocked and what is not built: `docs/delivery/CLAUDE_REVIEW_PACKET.md`.
 - Five-task walkthrough and screenshots: `docs/ux/WALKTHROUGH.md`.
 
@@ -45,10 +50,10 @@ Individual checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run sec
 - `src/lib/services/` — owner-scoped operations: businesses, investigations (state machine), evidence review, analysis, reports, outreach.
 - `src/lib/reasoning/` — reasoner boundary (rule-based mock; no LLM) and the claim-to-evidence verifier.
 - `src/lib/sources/` — page transport interface, mock fixture transport, HTML extraction, robots.txt, website evidence rules.
-- `src/lib/security/` — SSRF guard, guarded fetch (built for Phase 2, not enabled), origin/CSP helpers.
+- `src/lib/security/` — SSRF guard, guarded fetch (locked; tested only against controlled local servers), passphrase hashing, origin/host/CSP helpers.
 - `src/fixtures/golden.ts` — 15 fictional golden cases.
 - `src/app/` — screens, server actions and two read-only API routes. `src/proxy.ts` — CSP, origin check, sign-in gate.
-- `tests/` — 176 tests including the security negative tests.
+- `tests/` — 461 tests including the security negative tests. `tests/lab/` is a controlled local network for the fetcher tests; nothing in it leaves this computer.
 - `supabase/migrations/0001_init.sql` — schema with row-level security. **Not applied, not tested.**
 
 ## V3: UX and production-minded validation

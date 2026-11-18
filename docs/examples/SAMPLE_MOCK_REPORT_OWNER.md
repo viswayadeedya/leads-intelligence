@@ -13,9 +13,9 @@ We inspected 3 page(s) of birchwood-heating.example.invalid on 2026-11-18. 1 obs
 
 ## Scope and inspected sources
 
-- https://birchwood-heating.example.invalid/ — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
-- https://birchwood-heating.example.invalid/services — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
-- https://birchwood-heating.example.invalid/contact — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
+- https://birchwood-heating.example.invalid/ — Inspected — retrieved 2026-11-18T12:00:00.000Z
+- https://birchwood-heating.example.invalid/services — Inspected — retrieved 2026-11-18T12:00:00.000Z
+- https://birchwood-heating.example.invalid/contact — Inspected — retrieved 2026-11-18T12:00:00.000Z
 
 ## Observed customer journey
 
@@ -45,22 +45,22 @@ We inspected 3 page(s) of birchwood-heating.example.invalid on 2026-11-18. 1 obs
 **Confidence in the observation:** medium (this is not an estimate of business impact)
 
 **Evidence:**
-- `ev_93b67c9e` A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Read directly from the HTML of the business's own website.
-  - Source: https://birchwood-heating.example.invalid/
-  - Source: https://birchwood-heating.example.invalid/services
-  - Source: https://birchwood-heating.example.invalid/contact
-- `ev_2a2284f1` No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
-  - Source: https://birchwood-heating.example.invalid/
-  - Source: https://birchwood-heating.example.invalid/services
-  - Source: https://birchwood-heating.example.invalid/contact
-- `ev_721c196e` No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
-  - Source: https://birchwood-heating.example.invalid/
-  - Source: https://birchwood-heating.example.invalid/services
-  - Source: https://birchwood-heating.example.invalid/contact
-- `ev_3b88c049` No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
-  - Source: https://birchwood-heating.example.invalid/
-  - Source: https://birchwood-heating.example.invalid/services
-  - Source: https://birchwood-heating.example.invalid/contact
+- `ev_92e203fe` A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Read directly from the HTML of the business's own website.
+  - Source: Business website, https://birchwood-heating.example.invalid/
+  - Source: Business website, https://birchwood-heating.example.invalid/services
+  - Source: Business website, https://birchwood-heating.example.invalid/contact
+- `ev_e4a75690` No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
+  - Source: Business website, https://birchwood-heating.example.invalid/
+  - Source: Business website, https://birchwood-heating.example.invalid/services
+  - Source: Business website, https://birchwood-heating.example.invalid/contact
+- `ev_a128351b` No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
+  - Source: Business website, https://birchwood-heating.example.invalid/
+  - Source: Business website, https://birchwood-heating.example.invalid/services
+  - Source: Business website, https://birchwood-heating.example.invalid/contact
+- `ev_d9bb4c11` No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
+  - Source: Business website, https://birchwood-heating.example.invalid/
+  - Source: Business website, https://birchwood-heating.example.invalid/services
+  - Source: Business website, https://birchwood-heating.example.invalid/contact
 
 ## What we could not verify
 

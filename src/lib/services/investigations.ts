@@ -58,13 +58,32 @@ export function describeOutcome(outcome: FetchOutcome): { detail: string; code: 
   if (outcome.kind === 'unavailable') {
     if (r === 'mock_fixture_missing') return { detail: 'No synthetic fixture for this address', code: 'source_unavailable' };
     if (r === 'dns_failure') return { detail: 'The site address could not be resolved', code: 'source_unavailable' };
+    if (r === 'tls_error') return { detail: "The site's security certificate could not be verified; not fetched", code: 'source_unavailable' };
+    if (r === 'empty_response') return { detail: 'The page was empty', code: 'source_unavailable' };
+    if (r === 'incomplete_response') return { detail: 'The connection closed before the page finished loading', code: 'source_unavailable' };
+    if (r === 'too_many_redirects') return { detail: 'Too many redirects; stopped', code: 'source_unavailable' };
     return { detail: outcome.httpStatus ? `Page unavailable (HTTP ${outcome.httpStatus})` : 'Page unavailable', code: 'source_unavailable' };
   }
   if (r === 'timeout') return { detail: 'Timed out', code: 'timeout' };
   if (r.startsWith('security_blocked')) return { detail: 'Blocked by the safe-fetch rules', code: 'security_blocked' };
   if (r === 'response_too_large') return { detail: 'Response larger than the size limit', code: 'extraction_failed' };
   if (r === 'content_type_not_allowed') return { detail: 'Not an HTML page', code: 'extraction_failed' };
+  if (r === 'malformed_response') return { detail: 'The site sent a response that is not valid HTTP', code: 'extraction_failed' };
+  if (r === 'unsupported_content_encoding' || r === 'unsupported_charset' || r === 'undecodable_body' || r === 'binary_body') {
+    return { detail: 'The page was sent in an encoding that cannot be read reliably; not inspected', code: 'extraction_failed' };
+  }
   return { detail: 'Could not be processed', code: 'extraction_failed' };
+}
+
+/**
+ * Live website fetching is locked. A transport that is not the bundled
+ * synthetic fixtures is refused unless the in-memory switch is set, and no
+ * configuration file or environment variable can set it.
+ */
+function assertTransportAllowed(ctx: Ctx): void {
+  if (!ctx.transport.synthetic && ctx.config.liveFetchUnlocked !== true) {
+    throw new AppError('forbidden', 'Live website fetching is not enabled in this build. Nothing was requested.');
+  }
 }
 
 function toExtract(path: string, facts: PageFacts): PageExtract {
@@ -231,6 +250,7 @@ function upsertWebsiteEvidence(db: Db, ctx: Ctx, run: InvestigationRun, business
 }
 
 async function advance(ctx: Ctx, runId: string, retry: boolean): Promise<void> {
+  assertTransportAllowed(ctx);
   const nowIso = () => ctx.now().toISOString();
   let snap = ctx.store.snapshot();
   let run = getOwned(snap.runs, runId, ctx.actor, 'Investigation');
@@ -420,6 +440,7 @@ async function advanceSafely(ctx: Ctx, runId: string, retry: boolean): Promise<I
 
 export async function startInvestigation(ctx: Ctx, input: { businessId: string; idempotencyKey?: string | null }): Promise<InvestigationRun> {
   requireHuman(ctx.actor, 'Starting an investigation');
+  assertTransportAllowed(ctx);
   const key = input.idempotencyKey && input.idempotencyKey.length <= 100 ? input.idempotencyKey : null;
   const created = ctx.store.transact((db) => {
     const business = getOwned(db.businesses, input.businessId, ctx.actor, 'Business');

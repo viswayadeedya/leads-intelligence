@@ -10,7 +10,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "secret-scan": "node scripts/secret-scan.mjs",
+    "secret-scan": "node scripts/gitleaks-scan.mjs && node scripts/secret-scan.mjs",
+    "secret-scan:gitleaks": "node scripts/gitleaks-scan.mjs",
+    "secret-scan:rules": "node scripts/secret-scan.mjs",
+    "auth:reset": "node scripts/auth-reset.mjs",
+    "hooks:install": "git config core.hooksPath .githooks",
     "check:bundle": "node scripts/check-client-bundle.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run secret-scan && npm run check:bundle && npm run audit",
     "audit": "npm audit --omit=dev"

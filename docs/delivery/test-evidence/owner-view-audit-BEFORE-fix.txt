@@ -1,0 +1,555 @@
+npm notice run opportunity-intelligence@0.1.0 npx
+npm notice run vitest run tests/owner-view-audit.test.ts
+
+ RUN  v5.1.1 <repo>
+
+ ❯ tests/owner-view-audit.test.ts (24 tests | 21 failed) 102ms
+   ❯ owner view: run.unknowns (question and reason) (7)
+     × an unknown written as free text never reaches the owner view or export, in question or in reason 25ms
+     × an unknown that points at a non-public source record is withheld even if its structure looks valid 6ms
+     × flaky-timeout: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics 2ms
+     × site-403: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics 1ms
+     × robots-disallow: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics 1ms
+     × booking-page-403: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics 2ms
+     × budget exhaustion is described to the owner without naming the budget 2ms
+   ❯ owner view: field-by-field taint sweep (10)
+     × no internal-only field reaches the owner view or the Markdown export (finding included) 5ms
+     × no internal-only field reaches the owner outputs: flaky-timeout 2ms
+     × no internal-only field reaches the owner outputs: site-403 1ms
+     × no internal-only field reaches the owner outputs: contradictory-comments 6ms
+     × no internal-only field reaches the owner outputs: prompt-injection 4ms
+     × no internal-only field reaches the owner outputs: invented-revenue 4ms
+     × no internal-only field reaches the owner outputs: outdated-site 3ms
+     × the owner view is an allowlist: its keys are exactly these 3ms
+     × a website source whose address is not on the business domain is not listed for the owner 3ms
+     × the owner is not told that an observation was reviewed and held back 3ms
+   ❯ owner view: text written by the reasoner (2)
+     × a claim citing only public evidence cannot carry restricted text the reasoner was shown 4ms
+     × a claim with no recorded reasoning context is withheld from the owner (fail closed) 4ms
+   ❯ owner export: the approved text is re-checked when it is exported (3)
+     × refuses a stored snapshot that was altered after approval 4ms
+     × refuses when the owner version would now be different from what was approved 4ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 21 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > an unknown written as free text never reaches the owner view or export, in question or in reason
+AssertionError: expected '{"audience":"owner","business":{"disp…' not to contain 'PRIVATE-GROUP-MARKER-7731-Q'
+
+- Expected
++ Received
+
+- PRIVATE-GROUP-MARKER-7731-Q
++ {"audience":"owner","business":{"displayName":"Birchwood Heating (synthetic)","city":"Grandville","state":"MI","domain":"birchwood-heating.example.invalid","identity":"Name and location matched the website"},"synthetic":true,"mode":"mock","runId":"run_fa905656-bd77-438a-bcd0-809033f79b7b","investigatedAt":"2026-11-18T12:00:00.000Z","executiveFinding":"We inspected 3 page(s) of birchwood-heating.example.invalid on 2026-11-18. 1 observation(s) may be worth a conversation with the owner: No online request path found on inspected pages. Each is a hypothesis to check with the owner, not a conclusion.","sources":[{"label":"https://birchwood-heating.example.invalid/","url":"https://birchwood-heating.example.invalid/","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/services","url":"https://birchwood-heating.example.invalid/services","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/contact","url":"https://birchwood-heating.example.invalid/contact","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false}],"journey":[{"step":"Discovery (search, AI answers)","state":"Not checked","detail":"Search and AI-search visibility were not sampled."},{"step":"Contact (phone, form)","state":"Verified","detail":"A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact)."},{"step":"Booking (online request or scheduling)","state":"Checked; not found","detail":"No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact)."},{"step":"After-hours availability","state":"Verified","detail":"Office hours are stated on /. No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact)."},{"step":"Response and follow-up","state":"Not checked","detail":"This report includes no observation for this step."}],"opportunities":[{"id":"opp_932f69bb-ba00-4c26-a77b-b87a4b8e682d","title":"No online request path found on inspected pages","observedFact":"On the 3 pages inspected on 2026-11-18, a phone number is listed, and no contact form, booking link or after-hours statement was found.","interpretation":"A visitor who prefers not to call, or who visits outside office hours, may not find a way to request service online. Whether that matters depends on how calls are handled.","alternatives":["The business may deliberately prefer phone contact.","A booking tool may exist on a page that was not inspected, or may load through JavaScript, which this check does not see.","Calls outside office hours may already be answered by a person or an answering service."],"ownerQuestion":"When someone tries to reach you outside office hours, how is the request captured and who follows up?","possibleFix":"Only if the owner confirms a gap: add a simple online request form or after-hours call capture with owner notifications.","confidence":"medium","caveats":["html_only"],"status":"supported","decision":"accepted","decisionReason":"Reviewed.","evidence":[{"id":"ev_859f1938-2a5a-4728-a3a1-7ef74b3525a6","shortId":"ev_859f1938","observation":"A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact).","excerpt":"(616) 555-0109","observedAt":"2026-11-18T12:00:00.000Z","confidence":"high","rationale":"Read directly from the HTML of the business's own website.","caveats":[],"sensitivity":"public","verificationStatus":"accepted","manual":false,"stale":false,"sources":[{"label":"https://birchwood-heating.example.invalid/","url":"https://birchwood-heating.example.invalid/","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/services","url":"https://birchwood-heating.example.invalid/services","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/contact","url":"https://birchwood-heating.example.invalid/contact","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false}]},{"id":"ev_9d2f6a56-4eea-4348-baae-50c39463fa1c","shortId":"ev_9d2f6a56","observation":"No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact).","excerpt":null,"observedAt":"2026-11-18T12:00:00.000Z","confidence":"medium","rationale":"Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.","caveats":["html_only"],"sensitivity":"public","verificationStatus":"accepted","manual":false,"stale":false,"sources":[{"label":"https://birchwood-heating.example.invalid/","url":"https://birchwood-heating.example.invalid/","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/services","url":"https://birchwood-heating.example.invalid/services","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/contact","url":"https://birchwood-heating.example.invalid/contact","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false}]},{"id":"ev_f2b01f9a-ed1c-415f-a613-4f6ddb70aad9","shortId":"ev_f2b01f9a","observation":"No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact).","excerpt":null,"observedAt":"2026-11-18T12:00:00.000Z","confidence":"medium","rationale":"Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.","caveats":["html_only"],"sensitivity":"public","verificationStatus":"accepted","manual":false,"stale":false,"sources":[{"label":"https://birchwood-heating.example.invalid/","url":"https://birchwood-heating.example.invalid/","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/services","url":"https://birchwood-heating.example.invalid/services","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/contact","url":"https://birchwood-heating.example.invalid/contact","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false}]},{"id":"ev_a27f4106-32cf-42e0-a483-65733cfa69f5","shortId":"ev_a27f4106","observation":"No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact).","excerpt":null,"observedAt":"2026-11-18T12:00:00.000Z","confidence":"medium","rationale":"Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.","caveats":["html_only"],"sensitivity":"public","verificationStatus":"accepted","manual":false,"stale":false,"sources":[{"label":"https://birchwood-heating.example.invalid/","url":"https://birchwood-heating.example.invalid/","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/services","url":"https://birchwood-heating.example.invalid/services","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/contact","url":"https://birchwood-heating.example.invalid/contact","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false}]}]}],"unknowns":[{"question":"Whether the complaint in the members-only group (PRIVATE-GROUP-MARKER-7731-Q) is typical is unknown.","reason":"Only one member, Pat in the neighborhood group, said so (PRIVATE-GROUP-MARKER-7731-R)."}],"ownerQuestions":["When someone tries to reach you outside office hours, how is the request captured and who follows up?"],"possibleImprovements":["Only if the owner confirms a gap: add a simple online request form or after-hours call capture with owner notifications."],"methodology":["MOCK DATA: this report describes a fictional business built from synthetic fixtures. It is not evidence about any real company.","Pages were read as HTML only. Content inserted by JavaScript after load was not seen.","No forms were submitted, no calls were placed and no bookings were attempted.","\"Not found\" always refers to the pages listed. It does not mean a feature does not exist.","Comments recorded by hand are individual accounts. They do not show how often something happens.","No revenue, conversion or lost-job estimate is made. The investigation has no owner-provided baseline."]}
++ # Investigation report: Birchwood Heating (synthetic)
++
++ **MOCK DATA. Fictional business. Not evidence about any real company. Do not send.**
++
++ Location on record: Grandville, MI  
++ Website: birchwood-heating.example.invalid  
++ Identity check: Name and location matched the website  
++ Investigated: 2026-11-18 (UTC)
++
++ ## Summary
++
++ We inspected 3 page(s) of birchwood-heating.example.invalid on 2026-11-18. 1 observation(s) may be worth a conversation with the owner: No online request path found on inspected pages. Each is a hypothesis to check with the owner, not a conclusion.
++
++ ## Scope and inspected sources
++
++ - https://birchwood-heating.example.invalid/ — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
++ - https://birchwood-heating.example.invalid/services — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
++ - https://birchwood-heating.example.invalid/contact — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
++
++ ## Observed customer journey
++
++ - **Discovery (search, AI answers):** Not checked. Search and AI-search visibility were not sampled.
++ - **Contact (phone, form):** Verified. A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact).
++ - **Booking (online request or scheduling):** Checked; not found. No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact).
++ - **After-hours availability:** Verified. Office hours are stated on /. No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact).
++ - **Response and follow-up:** Not checked. This report includes no observation for this step.
++
++ ## Findings
++
++ ### 1. No online request path found on inspected pages
++
++ **We observed:** On the 3 pages inspected on 2026-11-18, a phone number is listed, and no contact form, booking link or after-hours statement was found.
++
++ **Why it might matter (hypothesis):** A visitor who prefers not to call, or who visits outside office hours, may not find a way to request service online. Whether that matters depends on how calls are handled.
++
++ **Other explanations:**
++ - The business may deliberately prefer phone contact.
++ - A booking tool may exist on a page that was not inspected, or may load through JavaScript, which this check does not see.
++ - Calls outside office hours may already be answered by a person or an answering service.
++
++ **Question for you:** When someone tries to reach you outside office hours, how is the request captured and who follows up?
++
++ **Possible improvement:** Only if the owner confirms a gap: add a simple online request form or after-hours call capture with owner notifications.
++
++ **Confidence in the observation:** medium (this is not an estimate of business impact)
++
++ **Evidence:**
++ - `ev_859f1938` A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Read directly from the HTML of the business's own website.
++   - Source: https://birchwood-heating.example.invalid/
++   - Source: https://birchwood-heating.example.invalid/services
++   - Source: https://birchwood-heating.example.invalid/contact
++ - `ev_9d2f6a56` No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
++   - Source: https://birchwood-heating.example.invalid/
++   - Source: https://birchwood-heating.example.invalid/services
++   - Source: https://birchwood-heating.example.invalid/contact
++ - `ev_f2b01f9a` No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
++   - Source: https://birchwood-heating.example.invalid/
++   - Source: https://birchwood-heating.example.invalid/services
++   - Source: https://birchwood-heating.example.invalid/contact
++ - `ev_a27f4106` No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Direct observation, but limited to the pages inspected and to HTML as delivered. Content added by JavaScript, or on pages that were not inspected, would not be seen.
++   - Source: https://birchwood-heating.example.invalid/
++   - Source: https://birchwood-heating.example.invalid/services
++   - Source: https://birchwood-heating.example.invalid/contact
++
++ ## What we could not verify
++
++ - Whether the complaint in the members-only group (PRIVATE-GROUP-MARKER-7731-Q) is typical is unknown. Only one member, Pat in the neighborhood group, said so (PRIVATE-GROUP-MARKER-7731-R).
++
++ ## Method and limitations
++
++ - MOCK DATA: this report describes a fictional business built from synthetic fixtures. It is not evidence about any real company.
++ - Pages were read as HTML only. Content inserted by JavaScript after load was not seen.
++ - No forms were submitted, no calls were placed and no bookings were attempted.
++ - "Not found" always refers to the pages listed. It does not mean a feature does not exist.
++ - Comments recorded by hand are individual accounts. They do not show how often something happens.
++ - No revenue, conversion or lost-job estimate is made. The investigation has no owner-provided baseline.
++
+
+ ❯ tests/owner-view-audit.test.ts:130:21
+    128|     const db = ctx.store.snapshot();
+    129|     const out = ownerOutputs(db, run.id);
+    130|     expect(out).not.toContain(`${PRIVATE_MARKER}-Q`);
+       |                     ^
+    131|     expect(out).not.toContain(`${PRIVATE_MARKER}-R`);
+    132|     expect(out).not.toContain('members-only');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > an unknown that points at a non-public source record is withheld even if its structure looks valid
+AssertionError: expected [ { question: 'q', reason: 'r' } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "question": "q",
++     "reason": "r",
++   },
++ ]
+
+ ❯ tests/owner-view-audit.test.ts:158:27
+    156|     });
+    157|     const { view, redaction } = buildOwnerView(ctx.store.snapshot(), r…
+    158|     expect(view.unknowns).toEqual([]);
+       |                           ^
+    159|     expect(redaction.unknownsWithheld).toBe(1);
+    160|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > flaky-timeout: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics
+ FAIL  tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > site-403: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics
+ FAIL  tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > robots-disallow: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics
+ FAIL  tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > booking-page-403: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics
+AssertionError: expected undefined to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+undefined
+
+ ❯ tests/owner-view-audit.test.ts:170:40
+    168|     // Still honest with the owner: the gap is stated, not hidden.
+    169|     expect(view.unknowns.length).toBeGreaterThan(0);
+    170|     expect(redaction.unknownsWithheld).toBe(0);
+       |                                        ^
+    171|     const text = `${JSON.stringify(view.unknowns)}\n${renderOwnerMarkd…
+    172|     for (const internal of ['budget', 'robots.txt could not be read', …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > budget exhaustion is described to the owner without naming the budget
+AssertionError: expected '[{"question":"Whether the website off…' not to match /budget|request|cent/i
+
+- Expected:
+/budget|request|cent/i
+
++ Received:
+"[{\"question\":\"Whether the website offers online booking is unknown.\",\"reason\":\"Not found on the 1 page(s) that were inspected, but 2 planned page(s) were not reached (/services, /contact) and the request budget for this run was reached. \\\"Not found on inspected pages\\\" does not mean it does not exist.\"},{\"question\":\"Whether the website has a contact form is unknown.\",\"reason\":\"Not found on the 1 page(s) that were inspected, but 2 planned page(s) were not reached (/services, /contact) and the request budget for this run was reached. \\\"Not found on inspected pages\\\" does not mean it does not exist.\"},{\"question\":\"Whether the website describes after-hours availability is unknown.\",\"reason\":\"Not found on the 1 page(s) that were inspected, but 2 planned page(s) were not reached (/services, /contact) and the request budget for this run was reached. \\\"Not found on inspected pages\\\" does not mean it does not exist.\"}]"
+
+ ❯ tests/owner-view-audit.test.ts:186:22
+    184|     const text = JSON.stringify(view.unknowns);
+    185|     expect(view.unknowns.length).toBeGreaterThan(0);
+    186|     expect(text).not.toMatch(/budget|request|cent/i);
+       |                      ^
+    187|     expect(text).toContain('before every planned page was read');
+    188|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner view or the Markdown export (finding included)
+AssertionError: expected [ 'evidence.supportingExcerpt', …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "evidence.supportingExcerpt",
++   "opportunity.decisionReason",
++   "run.unknowns[0].question",
++   "run.unknowns[0].reason",
++   "sourceRecord(website).accessDetail",
++ ]
+
+ ❯ tests/owner-view-audit.test.ts:202:52
+    200|     const { view } = buildOwnerView(db, run.id, NOW, 180);
+    201|     expect(view.opportunities.map((o) => o.title)).toEqual([NO_ONLINE_…
+    202|     expect(leaks(ownerOutputs(db, run.id), paths)).toEqual([]);
+       |                                                    ^
+    203|   });
+    204|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: flaky-timeout
+AssertionError: expected [ 'run.unknowns[0].question', …(6) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "run.unknowns[0].question",
++   "run.unknowns[0].reason",
++   "run.unknowns[1].question",
++   "run.unknowns[1].reason",
++   "run.unknowns[2].question",
++   "run.unknowns[2].reason",
++   "sourceRecord(website).accessDetail",
++ ]
+
+ ❯ tests/owner-view-audit.test.ts:211:52
+    209|     const db = ctx.store.snapshot();
+    210|     const paths = taintInternalFields(db, run.id);
+    211|     expect(leaks(ownerOutputs(db, run.id), paths)).toEqual([]);
+       |                                                    ^
+    212|   });
+    213|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: site-403
+AssertionError: expected [ 'run.unknowns[0].question', …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "run.unknowns[0].question",
++   "run.unknowns[0].reason",
++   "sourceRecord(website).accessDetail",
++ ]
+
+ ❯ tests/owner-view-audit.test.ts:211:52
+    209|     const db = ctx.store.snapshot();
+    210|     const paths = taintInternalFields(db, run.id);
+    211|     expect(leaks(ownerOutputs(db, run.id), paths)).toEqual([]);
+       |                                                    ^
+    212|   });
+    213|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: contradictory-comments
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: outdated-site
+AssertionError: expected [ 'evidence.supportingExcerpt', …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "evidence.supportingExcerpt",
++   "opportunity.decisionReason",
++   "sourceRecord(manual_observation).accessDetail",
++   "sourceRecord(website).accessDetail",
++ ]
+
+ ❯ tests/owner-view-audit.test.ts:211:52
+    209|     const db = ctx.store.snapshot();
+    210|     const paths = taintInternalFields(db, run.id);
+    211|     expect(leaks(ownerOutputs(db, run.id), paths)).toEqual([]);
+       |                                                    ^
+    212|   });
+    213|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: prompt-injection
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: invented-revenue
+AssertionError: expected [ 'evidence.supportingExcerpt', …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "evidence.supportingExcerpt",
++   "opportunity.decisionReason",
++   "sourceRecord(website).accessDetail",
++ ]
+
+ ❯ tests/owner-view-audit.test.ts:211:52
+    209|     const db = ctx.store.snapshot();
+    210|     const paths = taintInternalFields(db, run.id);
+    211|     expect(leaks(ownerOutputs(db, run.id), paths)).toEqual([]);
+       |                                                    ^
+    212|   });
+    213|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > the owner view is an allowlist: its keys are exactly these
+AssertionError: expected [ 'audience', 'business', …(12) ] to deeply equal [ 'audience', 'business', …(10) ]
+
+- Expected
++ Received
+
+@@ -3,12 +3,14 @@
+    "business",
+    "executiveFinding",
+    "investigatedAt",
+    "journey",
+    "methodology",
++   "mode",
+    "opportunities",
+    "ownerQuestions",
+    "possibleImprovements",
++   "runId",
+    "sources",
+    "synthetic",
+    "unknowns",
+  ]
+
+ ❯ tests/owner-view-audit.test.ts:220:24
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > a website source whose address is not on the business domain is not listed for the owner
+AssertionError: expected '{"audience":"owner","business":{"disp…' not to contain 'tracker.example.net'
+
+Expected: "tracker.example.net"
+Received: "{"audience":"owner","business":{"displayName":"Example Heating & Cooling (synthetic)","city":"Grand Rapids","state":"MI","domain":"example-heating.example.invalid","identity":"Name and location matched the website"},"synthetic":true,"mode":"mock","runId":"run_5d66ee83-dca8-461e-b23d-31aad2c6401a","investigatedAt":"2026-11-18T12:00:00.000Z","executiveFinding":"We inspected 3 page(s) of example-heating.example.invalid on 2026-11-18. We have no evidence-backed observation to raise. That is a valid outcome, and it is not a statement that nothing could be improved.","sources":[{"label":"https://tracker.example.net/redirected?session=abc","url":"https://tracker.example.net/redirected?session=abc","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://example-heating.example.invalid/services","url":"https://example-heating.example.invalid/services","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://example-heating.example.invalid/contact","url":"https://example-heating.example.invalid/contact","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false}],"journey":[{"step":"Discovery (search, AI answers)","state":"Not checked","detail":"Search and AI-search visibility were not sampled."},{"step":"Contact (phone, form)","state":"Not checked","detail":"An observation for this step was not accepted in review, so nothing is asserted about it."},{"step":"Booking (online request or scheduling)","state":"Not checked","detail":"An observation for this step was not accepted in review, so nothing is asserted about it."},{"step":"After-hours availability","state":"Not checked","detail":"An observation for this step was not accepted in review, so nothing is asserted about it."},{"step":"Response and follow-up","state":"Not checked","detail":"This report includes no observation for this step."}],"opportunities":[],"unknowns":[],"ownerQuestions":[],"possibleImprovements":[],"methodology":["MOCK DATA: this report describes a fictional business built from synthetic fixtures. It is not evidence about any real company.","Pages were read as HTML only. Content inserted by JavaScript after load was not seen.","No forms were submitted, no calls were placed and no bookings were attempted.","\"Not found\" always refers to the pages listed. It does not mean a feature does not exist.","Comments recorded by hand are individual accounts. They do not show how often something happens.","No revenue, conversion or lost-job estimate is made. The investigation has no owner-provided baseline."]}"
+
+ ❯ tests/owner-view-audit.test.ts:238:38
+    236|     rec.sourceUrl = 'https://tracker.example.net/redirected?session=ab…
+    237|     const { view, redaction } = buildOwnerView(db, run.id, NOW, 180);
+    238|     expect(JSON.stringify(view)).not.toContain('tracker.example.net');
+       |                                      ^
+    239|     expect(renderOwnerMarkdown(view)).not.toContain('tracker.example.n…
+    240|     expect(redaction.sourcesWithheld).toBeGreaterThanOrEqual(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > the owner is not told that an observation was reviewed and held back
+AssertionError: expected '{"audience":"owner","business":{"disp…' not to match /not accepted in review|awaiting revi…/i
+
+- Expected:
+/not accepted in review|awaiting review|rejected|I found a booking widget/i
+
++ Received:
+"{\"audience\":\"owner\",\"business\":{\"displayName\":\"Example Heating & Cooling (synthetic)\",\"city\":\"Grand Rapids\",\"state\":\"MI\",\"domain\":\"example-heating.example.invalid\",\"identity\":\"Name and location matched the website\"},\"synthetic\":true,\"mode\":\"mock\",\"runId\":\"run_48df8a19-8925-4426-84c7-1fe63cbb7cd0\",\"investigatedAt\":\"2026-11-18T12:00:00.000Z\",\"executiveFinding\":\"We inspected 3 page(s) of example-heating.example.invalid on 2026-11-18. We have no evidence-backed observation to raise. That is a valid outcome, and it is not a statement that nothing could be improved.\",\"sources\":[{\"label\":\"https://example-heating.example.invalid/\",\"url\":\"https://example-heating.example.invalid/\",\"accessStatus\":\"ok\",\"accessDetail\":\"HTTP 200\",\"retrievedAt\":\"2026-11-18T12:00:00.000Z\",\"manual\":false},{\"label\":\"https://example-heating.example.invalid/services\",\"url\":\"https://example-heating.example.invalid/services\",\"accessStatus\":\"ok\",\"accessDetail\":\"HTTP 200\",\"retrievedAt\":\"2026-11-18T12:00:00.000Z\",\"manual\":false},{\"label\":\"https://example-heating.example.invalid/contact\",\"url\":\"https://example-heating.example.invalid/contact\",\"accessStatus\":\"ok\",\"accessDetail\":\"HTTP 200\",\"retrievedAt\":\"2026-11-18T12:00:00.000Z\",\"manual\":false}],\"journey\":[{\"step\":\"Discovery (search, AI answers)\",\"state\":\"Not checked\",\"detail\":\"Search and AI-search visibility were not sampled.\"},{\"step\":\"Contact (phone, form)\",\"state\":\"Verified\",\"detail\":\"A phone number ((616) 555-0142) is shown on 3 of 3 inspected pages (/, /services, /contact). No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact).\"},{\"step\":\"Booking (online request or scheduling)\",\"state\":\"Not checked\",\"detail\":\"An observation for this step was not accepted in review, so nothing is asserted about it.\"},{\"step\":\"After-hours availability\",\"state\":\"Verified\",\"detail\":\"Office hours are stated on /. No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact).\"},{\"step\":\"Response and follow-up\",\"state\":\"Not checked\",\"detail\":\"This report includes no observation for this step.\"}],\"opportunities\":[],\"unknowns\":[],\"ownerQuestions\":[],\"possibleImprovements\":[],\"methodology\":[\"MOCK DATA: this report describes a fictional business built from synthetic fixtures. It is not evidence about any real company.\",\"Pages were read as HTML only. Content inserted by JavaScript after load was not seen.\",\"No forms were submitted, no calls were placed and no bookings were attempted.\",\"\\\"Not found\\\" always refers to the pages listed. It does not mean a feature does not exist.\",\"Comments recorded by hand are individual accounts. They do not show how often something happens.\",\"No revenue, conversion or lost-job estimate is made. The investigation has no owner-provided baseline.\"]}
+# Investigation report: Example Heating &amp; Cooling (synthetic)
+
+**MOCK DATA. Fictional business. Not evidence about any real company. Do not send.**
+
+Location on record: Grand Rapids, MI  
+Website: example-heating.example.invalid  
+Identity check: Name and location matched the website  
+Investigated: 2026-11-18 (UTC)
+
+## Summary
+
+We inspected 3 page(s) of example-heating.example.invalid on 2026-11-18. We have no evidence-backed observation to raise. That is a valid outcome, and it is not a statement that nothing could be improved.
+
+## Scope and inspected sources
+
+- https://example-heating.example.invalid/ — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
+- https://example-heating.example.invalid/services — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
+- https://example-heating.example.invalid/contact — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
+
+## Observed customer journey
+
+- **Discovery (search, AI answers):** Not checked. Search and AI-search visibility were not sampled.
+- **Contact (phone, form):** Verified. A phone number ((616) 555-0142) is shown on 3 of 3 inspected pages (/, /services, /contact). No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact).
+- **Booking (online request or scheduling):** Not checked. An observation for this step was not accepted in review, so nothing is asserted about it.
+- **After-hours availability:** Verified. Office hours are stated on /. No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact).
+- **Response and follow-up:** Not checked. This report includes no observation for this step.
+
+## Findings
+
+No findings are included in this report.
+## What we could not verify
+
+- How calls, voicemails and requests are handled inside the business. Only the owner can confirm this.
+
+## Method and limitations
+
+- MOCK DATA: this report describes a fictional business built from synthetic fixtures. It is not evidence about any real company.
+- Pages were read as HTML only. Content inserted by JavaScript after load was not seen.
+- No forms were submitted, no calls were placed and no bookings were attempted.
+- \"Not found\" always refers to the pages listed. It does not mean a feature does not exist.
+- Comments recorded by hand are individual accounts. They do not show how often something happens.
+- No revenue, conversion or lost-job estimate is made. The investigation has no owner-provided baseline.
+"
+
+ ❯ tests/owner-view-audit.test.ts:252:21
+    250|     }
+    251|     const out = ownerOutputs(ctx.store.snapshot(), run.id);
+    252|     expect(out).not.toMatch(/not accepted in review|awaiting review|re…
+       |                     ^
+    253|   });
+    254| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: text written by the reasoner > a claim citing only public evidence cannot carry restricted text the reasoner was shown
+AssertionError: expected '{"audience":"owner","business":{"disp…' not to contain 'PRIVATE-GROUP-MARKER-7731'
+
+- Expected
++ Received
+
+- PRIVATE-GROUP-MARKER-7731
++ {"audience":"owner","business":{"displayName":"Birchwood Heating (synthetic)","city":"Grandville","state":"MI","domain":"birchwood-heating.example.invalid","identity":"Name and location matched the website"},"synthetic":true,"mode":"mock","runId":"run_66a3fdea-58b1-46bc-9d70-823a92c4cb78","investigatedAt":"2026-11-18T12:00:00.000Z","executiveFinding":"We inspected 3 page(s) of birchwood-heating.example.invalid on 2026-11-18. 1 observation(s) may be worth a conversation with the owner: Phone contact path. Each is a hypothesis to check with the owner, not a conclusion.","sources":[{"label":"https://birchwood-heating.example.invalid/","url":"https://birchwood-heating.example.invalid/","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/services","url":"https://birchwood-heating.example.invalid/services","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/contact","url":"https://birchwood-heating.example.invalid/contact","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false}],"journey":[{"step":"Discovery (search, AI answers)","state":"Not checked","detail":"Search and AI-search visibility were not sampled."},{"step":"Contact (phone, form)","state":"Verified","detail":"A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact)."},{"step":"Booking (online request or scheduling)","state":"Checked; not found","detail":"No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact)."},{"step":"After-hours availability","state":"Verified","detail":"Office hours are stated on /. No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact)."},{"step":"Response and follow-up","state":"Not checked","detail":"This report includes no observation for this step."}],"opportunities":[{"id":"opp_401dfb85-69e8-4cf5-89dc-60c2f369b25f","title":"Phone contact path","observedFact":"A phone number is listed on the pages inspected.","interpretation":"Relevant context: In a members-only neighborhood group, a member wrote that nobody answered the office line on a Sunday. PRIVATE-GROUP-MARKER-7731","alternatives":["The business may prefer phone contact."],"ownerQuestion":"How are calls handled when the office is closed?","possibleFix":"Only if the owner confirms a gap: after-hours call capture.","confidence":"low","caveats":[],"status":"supported","decision":"accepted","decisionReason":"Reviewed.","evidence":[{"id":"ev_e407787d-9bd9-4f7a-90b3-5f636f2e056e","shortId":"ev_e407787d","observation":"A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact).","excerpt":"(616) 555-0109","observedAt":"2026-11-18T12:00:00.000Z","confidence":"high","rationale":"Read directly from the HTML of the business's own website.","caveats":[],"sensitivity":"public","verificationStatus":"accepted","manual":false,"stale":false,"sources":[{"label":"https://birchwood-heating.example.invalid/","url":"https://birchwood-heating.example.invalid/","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/services","url":"https://birchwood-heating.example.invalid/services","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false},{"label":"https://birchwood-heating.example.invalid/contact","url":"https://birchwood-heating.example.invalid/contact","accessStatus":"ok","accessDetail":"HTTP 200","retrievedAt":"2026-11-18T12:00:00.000Z","manual":false}]}]}],"unknowns":[],"ownerQuestions":["How are calls handled when the office is closed?"],"possibleImprovements":["Only if the owner confirms a gap: after-hours call capture."],"methodology":["MOCK DATA: this report describes a fictional business built from synthetic fixtures. It is not evidence about any real company.","Pages were read as HTML only. Content inserted by JavaScript after load was not seen.","No forms were submitted, no calls were placed and no bookings were attempted.","\"Not found\" always refers to the pages listed. It does not mean a feature does not exist.","Comments recorded by hand are individual accounts. They do not show how often something happens.","No revenue, conversion or lost-job estimate is made. The investigation has no owner-provided baseline."]}
++ # Investigation report: Birchwood Heating (synthetic)
++
++ **MOCK DATA. Fictional business. Not evidence about any real company. Do not send.**
++
++ Location on record: Grandville, MI  
++ Website: birchwood-heating.example.invalid  
++ Identity check: Name and location matched the website  
++ Investigated: 2026-11-18 (UTC)
++
++ ## Summary
++
++ We inspected 3 page(s) of birchwood-heating.example.invalid on 2026-11-18. 1 observation(s) may be worth a conversation with the owner: Phone contact path. Each is a hypothesis to check with the owner, not a conclusion.
++
++ ## Scope and inspected sources
++
++ - https://birchwood-heating.example.invalid/ — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
++ - https://birchwood-heating.example.invalid/services — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
++ - https://birchwood-heating.example.invalid/contact — HTTP 200 — retrieved 2026-11-18T12:00:00.000Z
++
++ ## Observed customer journey
++
++ - **Discovery (search, AI answers):** Not checked. Search and AI-search visibility were not sampled.
++ - **Contact (phone, form):** Verified. A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact).
++ - **Booking (online request or scheduling):** Checked; not found. No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact).
++ - **After-hours availability:** Verified. Office hours are stated on /. No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact).
++ - **Response and follow-up:** Not checked. This report includes no observation for this step.
++
++ ## Findings
++
++ ### 1. Phone contact path
++
++ **We observed:** A phone number is listed on the pages inspected.
++
++ **Why it might matter (hypothesis):** Relevant context: In a members-only neighborhood group, a member wrote that nobody answered the office line on a Sunday. PRIVATE-GROUP-MARKER-7731
++
++ **Other explanations:**
++ - The business may prefer phone contact.
++
++ **Question for you:** How are calls handled when the office is closed?
++
++ **Possible improvement:** Only if the owner confirms a gap: after-hours call capture.
++
++ **Confidence in the observation:** low (this is not an estimate of business impact)
++
++ **Evidence:**
++ - `ev_e407787d` A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). Observed 2026-11-18T12:00:00.000Z. Read directly from the HTML of the business's own website.
++   - Source: https://birchwood-heating.example.invalid/
++   - Source: https://birchwood-heating.example.invalid/services
++   - Source: https://birchwood-heating.example.invalid/contact
++
++ ## What we could not verify
++
++ - How calls, voicemails and requests are handled inside the business. Only the owner can confirm this.
++
++ ## Method and limitations
++
++ - MOCK DATA: this report describes a fictional business built from synthetic fixtures. It is not evidence about any real company.
++ - Pages were read as HTML only. Content inserted by JavaScript after load was not seen.
++ - No forms were submitted, no calls were placed and no bookings were attempted.
++ - "Not found" always refers to the pages listed. It does not mean a feature does not exist.
++ - Comments recorded by hand are individual accounts. They do not show how often something happens.
++ - No revenue, conversion or lost-job estimate is made. The investigation has no owner-provided baseline.
++
+
+ ❯ tests/owner-view-audit.test.ts:293:21
+    291|     // No stored claim that is eligible for the owner contains it.
+    292|     const out = ownerOutputs(db, run.id);
+    293|     expect(out).not.toContain(PRIVATE_MARKER);
+       |                     ^
+    294|     expect(out).not.toContain('members-only');
+    295|     for (const o of db.opportunities.filter((x) => x.runId === run.id …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner view: text written by the reasoner > a claim with no recorded reasoning context is withheld from the owner (fail closed)
+AssertionError: expected [ { …(13) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ tests/owner-view-audit.test.ts:313:32
+    311|     for (const o of db.opportunities) delete (o as { reasonedFrom?: st…
+    312|     const { view, redaction } = buildOwnerView(db, run.id, NOW, 180);
+    313|     expect(view.opportunities).toHaveLength(0);
+       |                                ^
+    314|     expect(redaction.opportunitiesWithheld).toHaveLength(1);
+    315|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner export: the approved text is re-checked when it is exported > refuses a stored snapshot that was altered after approval
+AssertionError: expected function to throw an error, but it didn't
+ ❯ tests/owner-view-audit.test.ts:335:46
+    333|       db.reports.find((r) => r.id === id)!.sharedSnapshot += `\n- ${PR…
+    334|     });
+    335|     expect(() => exportOwnerReport(ctx, id)).toThrowError(expect.objec…
+       |                                              ^
+    336|     const report = ctx.store.snapshot().reports.find((r) => r.id === i…
+    337|     expect(report.status).toBe('approved_internal');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/16]⎯
+
+ FAIL  tests/owner-view-audit.test.ts > owner export: the approved text is re-checked when it is exported > refuses when the owner version would now be different from what was approved
+AssertionError: expected function to throw an error, but it didn't
+ ❯ tests/owner-view-audit.test.ts:348:46
+    346|       for (const s of db.sourceRecords.filter((x) => x.runId === run.i…
+    347|     });
+    348|     expect(() => exportOwnerReport(ctx, id)).toThrowError(expect.objec…
+       |                                              ^
+    349|     expect(ctx.store.snapshot().reports.find((r) => r.id === id)!.stat…
+    350|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/16]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  21 failed | 3 passed (24)
+   Start at  11:50:46
+   Duration  391ms (import 41%, tests 38%, transform 20%, worker 1%)
+

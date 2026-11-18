@@ -38,7 +38,7 @@
       ],
       "evidence": [
         {
-          "id": "ev_93b67c9e-ec7c-44c8-ad33-7b4dcfee3cd0",
+          "id": "ev_92e203fe-4ca0-4f9a-aacc-ad5366b7c990",
           "sensitivity": "public",
           "observation": "A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact).",
           "observedAt": "2026-11-18T12:00:00.000Z",
@@ -49,7 +49,7 @@
           ]
         },
         {
-          "id": "ev_2a2284f1-f6c2-4a6f-b4f5-7ba32f9888a2",
+          "id": "ev_e4a75690-cdb4-4bfc-9a77-0ee551ee6dc3",
           "sensitivity": "public",
           "observation": "No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact).",
           "observedAt": "2026-11-18T12:00:00.000Z",
@@ -60,7 +60,7 @@
           ]
         },
         {
-          "id": "ev_721c196e-8535-449b-a508-6a0be7a08b5c",
+          "id": "ev_a128351b-bee1-4249-aa72-284d226e8131",
           "sensitivity": "public",
           "observation": "No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact).",
           "observedAt": "2026-11-18T12:00:00.000Z",
@@ -71,7 +71,7 @@
           ]
         },
         {
-          "id": "ev_3b88c049-c649-4206-8e9c-bf665ffd78f8",
+          "id": "ev_d9bb4c11-6321-479b-b5dc-bce3256f890d",
           "sensitivity": "public",
           "observation": "No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact).",
           "observedAt": "2026-11-18T12:00:00.000Z",
@@ -92,7 +92,7 @@
       ],
       "evidence": [
         {
-          "id": "ev_acd0711a-58bf-4b42-9b9d-166f0774f0b9",
+          "id": "ev_552e04af-67c1-44b5-83be-f5a71c03ebf7",
           "sensitivity": "restricted",
           "observation": "In a members-only neighborhood group, a member wrote that nobody answered the office line on a Sunday. PRIVATE-GROUP-MARKER-7731",
           "observedAt": "2026-10-05T00:00:00.000Z",
@@ -112,6 +112,8 @@
       }
     ],
     "evidenceWithheld": 1,
-    "sourcesWithheld": 1
+    "sourcesWithheld": 1,
+    "unknownsWithheld": 0,
+    "thirdPartyObservationsIncluded": 0
   }
 }

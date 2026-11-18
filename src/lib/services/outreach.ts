@@ -40,12 +40,15 @@ export function createOutreachDraft(ctx: Ctx, reportId: string, opportunityId: s
       throw new AppError('approval_required', 'Approve the report before drafting outreach. Drafts are only built from approved findings.');
     }
     const business = getOwned(db.businesses, report.businessId, ctx.actor, 'Business');
-    const { view } = buildOwnerView(db, report.runId, ctx.now(), ctx.config.staleAfterDays);
-    const opp = view.opportunities.find((o) => o.id === opportunityId);
+    // The draft is written only from the owner view, so it cannot contain
+    // anything the owner report would withhold.
+    const { view, opportunityIds } = buildOwnerView(db, report.runId, ctx.now(), ctx.config.staleAfterDays);
+    const index = opportunityIds.indexOf(opportunityId);
+    const opp = index === -1 ? undefined : view.opportunities[index];
     if (!opp) {
       throw new AppError('conflict', 'Outreach can only reference a finding that is accepted and safe to show the owner.');
     }
-    const existing = db.outreachDrafts.find((d) => d.reportId === report.id && d.opportunityId === opp.id && d.ownerId === ctx.actor.userId);
+    const existing = db.outreachDrafts.find((d) => d.reportId === report.id && d.opportunityId === opportunityId && d.ownerId === ctx.actor.userId);
     if (existing) return existing;
 
     const fact = opp.observedFact.charAt(0).toLowerCase() + opp.observedFact.slice(1);
@@ -75,7 +78,7 @@ export function createOutreachDraft(ctx: Ctx, reportId: string, opportunityId: s
       businessId: business.id,
       reportId: report.id,
       reportVersion: report.version,
-      opportunityId: opp.id,
+      opportunityId,
       channel: 'email',
       subject,
       body,

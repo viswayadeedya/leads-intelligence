@@ -34,3 +34,20 @@ Recorded by the builder (Claude) so the reviewer has something concrete to check
 | Incident readiness | `docs/architecture/OPERATIONS_RUNBOOK.md` text only | **NOT TESTED.** No keys exist to rotate; no on-call owner named | |
 
 Applicable gates that are untested are blockers for live mode, per the rule above. They do not block continued mock-mode use.
+
+---
+
+## Builder-submitted evidence — review branch `review/milestone-1-hardening` (2026-11-18). NOT A REVIEW.
+Commit: the single commit on that branch after `22068db` (`git log --oneline main..review/milestone-1-hardening`). The reviewer fills in the verdict column.
+
+| Gate | Builder's evidence | Builder's claim | Reviewer verdict |
+|---|---|---|---|
+| Authn/authz and RLS | `tests/auth-hardening.test.ts` (55), `tests/authz.test.ts`, `tests/api-routes.test.ts`; browser and curl probes in BUILD_LOG | No passwordless path; hashed passphrase; global lockout; idle timeout; host-name check. **No second factor. RLS: NOT TESTED** | |
+| SSRF/egress | `tests/ssrf.test.ts` (73), `tests/live-fetch-controlled.test.ts` (111, real sockets, loopback only, canary never reached) | Pass against controlled servers. **Egress restriction: NOT IMPLEMENTED. No real site contacted.** Live fetch locked | |
+| Prompt injection | as before, plus the hostile page through the real fetch path, plus two-context reasoning (`tests/owner-view-audit.test.ts`) | Pass structurally. **No real model tested** | |
+| Secrets | `npm run secret-scan`: gitleaks 8.30.1 on history and working folder, plus project rules; `npm run check:bundle` | History: 3 canary strings, recorded with reason. Working folder: 0 | |
+| Privacy | `tests/owner-view-audit.test.ts` (24), `tests/privacy-report.test.ts`; before-fix failures in `test-evidence/owner-view-audit-BEFORE-fix.txt` | The Milestone 1 "Pass" was wrong: unknowns and reasoner-written text leaked. Fixed and tested. Excerpts are still not screened for personal data (internal only) | |
+| Outbound safety | `tests/semantic-claims.test.ts` part 3, `tests/outreach-limits.test.ts`; no send code exists | Pass | |
+| Resource caps | as before, plus the request cap against a controlled 40-link page | Pass. IP rate limit: NOT IMPLEMENTED | |
+| Supply chain | lockfile, `npm audit --omit=dev` = 0; gitleaks installed through winget with hash verification | Dev tooling advisories unfixed. **CI: NONE** | |
+| Incident readiness | `npm run auth:reset`; runbook text | Passphrase reset tested by hand. Otherwise NOT TESTED | |

@@ -119,14 +119,29 @@ describe('safeFetch', () => {
   });
 
   it('blocks redirect to localhost, to file:// and to a host that resolves privately', async () => {
-    for (const location of ['http://localhost/admin', 'file:///etc/passwd', 'https://rebind.example.net/']) {
+    // The third target is on the same site (redirects elsewhere are not followed at all),
+    // but its name resolves to a private address.
+    for (const location of ['http://localhost/admin', 'file:///etc/passwd', 'https://www.site.example.com/']) {
       const out = await safeFetch('https://site.example.com/', OPTS, {
-        resolve: async (host) => (host === 'rebind.example.net' ? [{ address: '192.168.1.20', family: 4 }] : [{ address: '93.184.216.34', family: 4 }]),
+        resolve: async (host) => (host === 'www.site.example.com' ? [{ address: '192.168.1.20', family: 4 }] : [{ address: '93.184.216.34', family: 4 }]),
         request: async () => html('', 301, { location }),
       });
       expect(out.kind).toBe('error');
       if (out.kind === 'error') expect(out.reason.startsWith('security_blocked')).toBe(true);
     }
+  });
+
+  it('by default a redirect to a different site is not followed and that site is never resolved', async () => {
+    const resolved: string[] = [];
+    const out = await safeFetch('https://site.example.com/', OPTS, {
+      resolve: async (host) => {
+        resolved.push(host);
+        return [{ address: '93.184.216.34', family: 4 }];
+      },
+      request: async () => html('', 301, { location: 'https://rebind.example.net/' }),
+    });
+    expect(out).toMatchObject({ kind: 'restricted', reason: 'redirected_off_domain' });
+    expect(resolved).toEqual(['site.example.com']);
   });
 
   it('defeats DNS rebinding: connects to the validated address and never resolves a second time', async () => {

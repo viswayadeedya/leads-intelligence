@@ -5,6 +5,12 @@ export type AppConfig = {
   /** This build only runs in mock mode. Live mode is gated (see docs/security). */
   mode: 'mock';
   liveRequested: boolean;
+  /**
+   * Second lock on live website fetching. `loadConfig` ALWAYS returns false:
+   * there is deliberately no environment variable for it. Only tests that run
+   * against controlled servers on this machine set it, in memory.
+   */
+  liveFetchUnlocked: boolean;
   maxCostCents: number;
   maxRequests: number;
   maxPagesPerSite: number;
@@ -15,10 +21,16 @@ export type AppConfig = {
   maxRedirects: number;
   staleAfterDays: number;
   sessionTtlMinutes: number;
+  /** a session ends after this long without a request, whatever its absolute limit */
+  sessionIdleMinutes: number;
+  maxSessions: number;
+  /** Host header values this app answers to. Anything else is refused (DNS-rebinding defense). */
+  allowedHosts: string[];
   approvalTtlMinutes: number;
   dataDir: string;
   credentials: { name: string; configured: boolean }[];
-  operatorPassphraseSet: boolean;
+  /** OPERATOR_PASSPHRASE is present in the environment (its value is never exposed here) */
+  envPassphraseSet: boolean;
 };
 
 function intFromEnv(value: string | undefined, fallback: number, min: number, max: number): number {
@@ -42,6 +54,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   return {
     mode: 'mock',
     liveRequested: requested === 'live',
+    liveFetchUnlocked: false,
     maxCostCents: intFromEnv(env.MAX_INVESTIGATION_COST_CENTS, 50, 0, 10_000),
     maxRequests: intFromEnv(env.MAX_INVESTIGATION_REQUESTS, 30, 1, 200),
     maxPagesPerSite: intFromEnv(env.MAX_PAGES_PER_SITE, 5, 1, 20),
@@ -52,12 +65,15 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     maxRedirects: intFromEnv(env.MAX_REDIRECTS, 3, 0, 5),
     staleAfterDays: intFromEnv(env.STALE_AFTER_DAYS, 180, 1, 3650),
     sessionTtlMinutes: intFromEnv(env.SESSION_TTL_MINUTES, 480, 5, 1440),
+    sessionIdleMinutes: intFromEnv(env.SESSION_IDLE_MINUTES, 60, 5, 1440),
+    maxSessions: intFromEnv(env.MAX_SESSIONS, 5, 1, 20),
+    allowedHosts: ['localhost', '127.0.0.1', '[::1]', ...(env.OI_ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim().toLowerCase()).filter((h) => /^[a-z0-9.-]{1,253}$/.test(h))],
     approvalTtlMinutes: intFromEnv(env.APPROVAL_TTL_MINUTES, 60, 1, 1440),
     dataDir: env.OI_DATA_DIR && env.OI_DATA_DIR.trim() !== '' ? env.OI_DATA_DIR : '.data',
     credentials: CREDENTIAL_NAMES.map((name) => ({
       name,
       configured: Boolean(env[name] && env[name]!.trim() !== ''),
     })),
-    operatorPassphraseSet: Boolean(env.OPERATOR_PASSPHRASE && env.OPERATOR_PASSPHRASE.length > 0),
+    envPassphraseSet: Boolean(env.OPERATOR_PASSPHRASE && env.OPERATOR_PASSPHRASE.length > 0),
   };
 }

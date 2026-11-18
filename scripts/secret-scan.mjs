@@ -33,7 +33,8 @@ function walk(dir) {
     const full = path.join(dir, entry.name);
     const rel = path.relative(ROOT, full).replaceAll('\\', '/');
     if (entry.isDirectory()) {
-      if (!SKIP_DIRS.has(entry.name)) walk(full);
+      // .data and .data-* are local data folders (ignored, never committed)
+      if (!SKIP_DIRS.has(entry.name) && !entry.name.startsWith('.data')) walk(full);
       continue;
     }
     if (SKIP_FILES.has(entry.name)) continue;

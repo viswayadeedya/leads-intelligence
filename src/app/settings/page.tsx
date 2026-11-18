@@ -1,14 +1,19 @@
-import { Badge, PageHeader, Time } from '@/components/ui';
+import { changePassphraseAction, signOutEverywhereAction } from '../actions';
+import { Badge, Field, NoticeBanner, PageHeader, Time } from '@/components/ui';
+import { authStatus, readNotice } from '@/lib/auth';
 import { requireCtx } from '@/lib/runtime';
 import { listAudit } from '@/lib/services/overview';
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ n?: string }> }) {
   const ctx = await requireCtx();
+  const { n } = await searchParams;
   const c = ctx.config;
+  const auth = authStatus(ctx.store, process.env, ctx.now());
   const audit = listAudit(ctx, 100);
   return (
     <>
-      <PageHeader crumbs={[{ href: '/', label: 'Home' }, { label: 'Settings' }]} title="Control sources, cost and privacy" subtitle="Read-only in this build. Values come from environment variables; secrets are never displayed." />
+      <PageHeader crumbs={[{ href: '/', label: 'Home' }, { label: 'Settings' }]} title="Control sources, cost and privacy" subtitle="Limits come from environment variables and are read-only here. Sign-in can be managed below. Secrets are never displayed." />
+      <NoticeBanner notice={readNotice(ctx.store, ctx.actor.userId, n)} />
 
       <div className="grid-2">
         <section className="card" aria-labelledby="mode-h">
@@ -31,10 +36,56 @@ export default async function SettingsPage() {
                 <span className="mono">{cred.name}</span>: {cred.configured ? <Badge tone="info">Present, unused in this build</Badge> : <Badge>Not configured</Badge>}
               </li>
             ))}
-            <li>
-              <span className="mono">OPERATOR_PASSPHRASE</span>: {c.operatorPassphraseSet ? <Badge tone="ok">Set: required to sign in</Badge> : <Badge tone="warn">Not set: one-click local sign-in</Badge>}
-            </li>
           </ul>
+        </section>
+
+        <section className="card" aria-labelledby="signin-h">
+          <h2 id="signin-h">Sign-in</h2>
+          <dl className="details">
+            <dt>Passphrase</dt>
+            <dd>
+              {auth.mode === 'env_passphrase' ? (
+                <>
+                  <Badge tone="warn">From OPERATOR_PASSPHRASE</Badge> Kept as plain text in your environment file. Removing it switches to a passphrase stored only as a hash.
+                </>
+              ) : (
+                <>
+                  <Badge tone="ok">Stored as a salted hash</Badge> Set <Time iso={auth.credentialSetAt} />. The passphrase itself is not stored anywhere.
+                </>
+              )}
+            </dd>
+            <dt>Sessions</dt>
+            <dd>
+              {auth.activeSessions} active. A session ends after {c.sessionIdleMinutes} minutes without activity, or {c.sessionTtlMinutes} minutes in total.
+            </dd>
+            <dt>Failed attempts</dt>
+            <dd>
+              {auth.failedAttempts} in the last 15 minutes. Sign-in locks for 15 minutes after 5. Each one is in the audit trail below.
+            </dd>
+            <dt>Second factor</dt>
+            <dd>
+              <Badge>Not built</Badge> This app answers only on this computer (127.0.0.1). Do not expose it to a network without adding one.
+            </dd>
+          </dl>
+          <form action={signOutEverywhereAction}>
+            <button type="submit">Sign out all other sessions</button>
+          </form>
+          {auth.mode === 'stored_passphrase' ? (
+            <form action={changePassphraseAction}>
+              <h3>Change passphrase</h3>
+              <Field label="Current passphrase">
+                <input type="password" name="current" autoComplete="current-password" required />
+              </Field>
+              <Field label="New passphrase" hint="At least 12 characters. Several unrelated words work well.">
+                <input type="password" name="next" autoComplete="new-password" minLength={12} maxLength={200} required />
+              </Field>
+              <Field label="New passphrase again">
+                <input type="password" name="confirm" autoComplete="new-password" minLength={12} maxLength={200} required />
+              </Field>
+              <button type="submit">Change passphrase</button>
+              <p className="small muted">Changing it signs out every other session. If you forget it, stop the app and run “npm run auth:reset” on this computer.</p>
+            </form>
+          ) : null}
         </section>
 
         <section className="card" aria-labelledby="budget-h">
@@ -53,7 +104,9 @@ export default async function SettingsPage() {
             <dt>Evidence freshness window</dt>
             <dd>{c.staleAfterDays} days</dd>
             <dt>Session length</dt>
-            <dd>{c.sessionTtlMinutes} minutes</dd>
+            <dd>
+              {c.sessionTtlMinutes} minutes in total, {c.sessionIdleMinutes} minutes idle
+            </dd>
             <dt>Outreach approval lifetime</dt>
             <dd>{c.approvalTtlMinutes} minutes</dd>
           </dl>
@@ -67,7 +120,7 @@ export default async function SettingsPage() {
               Business website (synthetic fixtures): <Badge tone="ok">Enabled</Badge>
             </li>
             <li>
-              Business website (live fetch): <Badge>Built, not enabled, not live-tested</Badge>
+              Business website (live fetch): <Badge>Built, locked</Badge> Tested only against controlled servers on this computer; never used on a real site.
             </li>
             <li>
               Manual observations entered by you: <Badge tone="ok">Enabled</Badge>

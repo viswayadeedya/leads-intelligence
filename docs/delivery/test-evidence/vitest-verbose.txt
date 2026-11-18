@@ -3,15 +3,6 @@ npm notice run vitest run --reporter=verbose
 
  RUN  v5.1.1 <repo>
 
- ✓ tests/extract-robots.test.ts > extractPage > reads title, visible text and phones; ignores script, style, comments, noscript and hidden nodes 1ms
- ✓ tests/extract-robots.test.ts > extractPage > keeps hostile markup as plain text only 0ms
- ✓ tests/extract-robots.test.ts > extractPage > detects signals only from visible content 1ms
- ✓ tests/extract-robots.test.ts > extractPage > plans only same-site contact/booking pages, never off-site links or files 1ms
- ✓ tests/extract-robots.test.ts > extractPage > survives malformed and enormous input without throwing 58ms
- ✓ tests/extract-robots.test.ts > extractPage > recognizes booking links by label and by known scheduling host, but not "Facebook" 1ms
- ✓ tests/extract-robots.test.ts > robots.txt > honors disallow, allow precedence, wildcards and agent groups 1ms
- ✓ tests/extract-robots.test.ts > identity normalization > normalizes names and domains 4ms
- ✓ tests/extract-robots.test.ts > identity normalization > same name in a different city is not treated as a duplicate 1ms
  ✓ tests/ssrf.test.ts > validateFetchUrl > rejects file:///etc/passwd (scheme_not_allowed) 1ms
  ✓ tests/ssrf.test.ts > validateFetchUrl > rejects ftp://example.com/ (scheme_not_allowed) 0ms
  ✓ tests/ssrf.test.ts > validateFetchUrl > rejects javascript:alert(1) (scheme_not_allowed) 0ms
@@ -75,87 +66,40 @@ npm notice run vitest run --reporter=verbose
  ✓ tests/ssrf.test.ts > safeFetch > blocks when ANY DNS answer is private (mixed answer set) 0ms
  ✓ tests/ssrf.test.ts > safeFetch > blocks redirect to the cloud metadata address 0ms
  ✓ tests/ssrf.test.ts > safeFetch > blocks redirect to localhost, to file:// and to a host that resolves privately 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > by default a redirect to a different site is not followed and that site is never resolved 0ms
  ✓ tests/ssrf.test.ts > safeFetch > defeats DNS rebinding: connects to the validated address and never resolves a second time 0ms
  ✓ tests/ssrf.test.ts > safeFetch > caps redirects 0ms
  ✓ tests/ssrf.test.ts > safeFetch > reports off-domain redirects as restricted instead of following them 0ms
  ✓ tests/ssrf.test.ts > safeFetch > refuses oversized responses and non-HTML content 0ms
  ✓ tests/ssrf.test.ts > safeFetch > maps 403/429/CAPTCHA to restricted and never retries them 0ms
- ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > connects to the pinned address even though the hostname does not resolve 8ms
+ ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > connects to the pinned address even though the hostname does not resolve 10ms
  ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > aborts when the body exceeds the byte cap 2ms
- ✓ tests/sample-report.test.ts > sample report (synthetic "private-group-note" case) > internal view cites evidence IDs; owner version is redacted 23ms
- ✓ tests/authz.test.ts > sessions > anonymous or forged tokens resolve to no actor 2ms
- ✓ tests/authz.test.ts > sessions > a valid session resolves to the human operator, expires, and is invalidated by sign-out 1ms
- ✓ tests/authz.test.ts > sessions > stores only a hash of the session token 0ms
- ✓ tests/authz.test.ts > sessions > one-click mock sign-in is disabled once a passphrase is configured; wrong passphrases are rate limited 1ms
- ✓ tests/authz.test.ts > sessions > parses the session cookie from a raw header 0ms
- ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > denies every service call with "not found" and leaves A data unchanged 29ms
- ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > a business created by A is invisible to B 1ms
- ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > client input cannot set owner or trust fields (mass assignment) 0ms
- ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > website input rejects internal hosts, IPs, credentials and non-http schemes 1ms
- ✓ tests/authz.test.ts > non-human actors cannot take review, approval or outbound actions > model actor is refused 3ms
- ✓ tests/authz.test.ts > non-human actors cannot take review, approval or outbound actions > system actor is refused 3ms
- ✓ tests/authz.test.ts > CSRF origin check and CSP > treats only GET/HEAD/OPTIONS as safe 0ms
- ✓ tests/authz.test.ts > CSRF origin check and CSP > requires a present, matching Origin for state-changing requests 0ms
- ✓ tests/authz.test.ts > CSRF origin check and CSP > only /login is reachable without a session 0ms
- ✓ tests/authz.test.ts > CSRF origin check and CSP > production CSP has no unsafe-inline or unsafe-eval and forbids framing 0ms
- ✓ tests/verifier.test.ts > verifyProposal > accepts a narrow claim that cites valid evidence 20ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects unknown and other-run evidence IDs 8ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects evidence recorded as being about a different business 2ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects dollar, percentage and loss claims 4ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects numbers in the observed fact that are not in the cited evidence 3ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects confidence higher than the weakest cited evidence 3ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects an absence claim with no absence evidence, or without scope 3ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects an absence claim when any website source in the run failed 3ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects overgeneralization from a single anecdote and inflated confidence 3ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects stale evidence worded as current 2ms
- ✓ tests/verifier.test.ts > verifyProposal > 9. a search observation without location is marked geo-uncertain and cannot support a local claim 3ms
- ✓ tests/verifier.test.ts > verifyProposal > rejects instruction-like page text as support for any claim 3ms
- ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects output that is not the expected shape 3ms
- ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects proposals that carry extra fields such as actions or tool calls 2ms
- ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects proposals missing alternatives or an owner question 2ms
- ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > keeps the note internal and withholds any claim that depends on it 22ms
- ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > the approved export contains no restricted material and is the exact approved text 13ms
- ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > a gated source can never be classified public, whatever the operator selects 9ms
- ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > fails closed: evidence with a missing or unknown privacy class is excluded 6ms
- ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > instruction-like page text and unreviewed evidence never appear in the owner view 6ms
- ✓ tests/privacy-report.test.ts > approval is bound to exact content > cannot approve with pending reviews, a stale hash, or out of order; later changes withdraw approval 7ms
- ✓ tests/privacy-report.test.ts > approval is bound to exact content > "no finding" is a valid, approvable outcome 4ms
- ✓ tests/privacy-report.test.ts > hostile text is neutralized > escapes Markdown and HTML control characters 0ms
- ✓ tests/privacy-report.test.ts > hostile text is neutralized > a malicious business name and observation cannot inject markup into the owner export 2ms
- ✓ tests/privacy-report.test.ts > hostile text is neutralized > the internal view cannot be exported as an owner document 3ms
- ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > no draft before the report is approved, and only from an owner-safe accepted finding 19ms
- ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > a claim resting on restricted evidence cannot be used for outreach 11ms
- ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > full gate: unapproved fails, wrong/expired/replayed/edited approvals fail, exact approval succeeds once 7ms
- ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > an approval issued for one user or draft cannot be used on another 4ms
- ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > drafts about synthetic businesses can never be recorded as sent 5ms
- ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > copying is logged as copied, not sent 2ms
- ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > edits that add loss, dollar, guarantee or urgency claims are refused 1ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > stops at the per-run request cap, keeps evidence, marks the run partial and makes no absence claims 3ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > never exceeds the cost cap when requests cost money 2ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > limits investigations per hour 6ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > bounds retries per investigation 2ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > idempotency key and open-run reuse prevent duplicate runs 2ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a failing transport marks the run failed, never clean 0ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a reasoner that throws or returns junk leaves evidence reviewable and reports the failure 4ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a stopped investigation cannot be resumed or retried 2ms
- ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > manual evidence requires provenance and a privacy class, and refuses personal identifiers 3ms
- ✓ tests/outreach-limits.test.ts > log redaction (negative test 3, logs) > removes secrets, cookies, tokens and source bodies 0ms
+ ✓ tests/extract-robots.test.ts > extractPage > reads title, visible text and phones; ignores script, style, comments, noscript and hidden nodes 2ms
+ ✓ tests/extract-robots.test.ts > extractPage > keeps hostile markup as plain text only 0ms
+ ✓ tests/extract-robots.test.ts > extractPage > detects signals only from visible content 2ms
+ ✓ tests/extract-robots.test.ts > extractPage > plans only same-site contact/booking pages, never off-site links or files 1ms
+ ✓ tests/extract-robots.test.ts > extractPage > survives malformed and enormous input without throwing 64ms
+ ✓ tests/extract-robots.test.ts > extractPage > recognizes booking links by label and by known scheduling host, but not "Facebook" 1ms
+ ✓ tests/extract-robots.test.ts > robots.txt > honors disallow, allow precedence, wildcards and agent groups 1ms
+ ✓ tests/extract-robots.test.ts > identity normalization > normalizes names and domains 5ms
+ ✓ tests/extract-robots.test.ts > identity normalization > same name in a different city is not treated as a duplicate 1ms
+ ✓ tests/sample-report.test.ts > sample report (synthetic "private-group-note" case) > internal view cites evidence IDs; owner version is redacted 48ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > has at least 12 cases 1ms
- ✓ tests/golden.test.ts > golden set: expected outcome per case > baseline-phone-only 20ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > baseline-phone-only 39ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > same-name-other-city 2ms
- ✓ tests/golden.test.ts > golden set: expected outcome per case > parent-subsidiary 2ms
- ✓ tests/golden.test.ts > golden set: expected outcome per case > outdated-site 3ms
- ✓ tests/golden.test.ts > golden set: expected outcome per case > phone-scheduling 3ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > parent-subsidiary 1ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > outdated-site 6ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > phone-scheduling 2ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > site-403 1ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > robots-disallow 2ms
- ✓ tests/golden.test.ts > golden set: expected outcome per case > prompt-injection 6ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > prompt-injection 4ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > contradictory-comments 4ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > invented-revenue 3ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > private-group-note 3ms
- ✓ tests/golden.test.ts > golden set: expected outcome per case > duplicate-two-domains 4ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > duplicate-two-domains 3ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > booking-page-403 2ms
  ✓ tests/golden.test.ts > golden set: expected outcome per case > contact-form-deeper 2ms
- ✓ tests/golden.test.ts > golden set: expected outcome per case > flaky-timeout 2ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > flaky-timeout 1ms
  ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 1. a comment about a different business cannot support an opportunity 4ms
  ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 2. a 403 is "restricted" and never becomes a negative finding 1ms
  ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 2b. robots.txt disallow: pages are not requested at all 1ms
@@ -164,24 +108,365 @@ npm notice run vitest run --reporter=verbose
  ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 5+6. invented statistic, nonexistent evidence ID and an "action" are rejected and logged 2ms
  ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 7. one complaint is labelled anecdotal with low confidence, and no pattern is claimed 2ms
  ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 8. old evidence is flagged stale, dated, and not worded as current 8ms
- ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 10. prompt injection in page HTML is inert source text 2ms
- ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > contradictory comments are both kept visible and both cited 2ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 10. prompt injection in page HTML is inert source text 3ms
+ ✓ tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > an unknown written as free text never reaches the owner view or export, in question or in reason 47ms
+ ✓ tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > an unknown that points at a non-public source record is withheld even if its structure looks valid 5ms
+ ✓ tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > flaky-timeout: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics 3ms
+ ✓ tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > site-403: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics 1ms
+ ✓ tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > robots-disallow: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics 1ms
+ ✓ tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > booking-page-403: real pipeline unknowns reach the owner as fixed wording, with no internal diagnostics 2ms
+ ✓ tests/owner-view-audit.test.ts > owner view: run.unknowns (question and reason) > budget exhaustion is described to the owner without naming the budget 2ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner view or the Markdown export (finding included) 8ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: flaky-timeout 2ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: site-403 1ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: contradictory-comments 6ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: prompt-injection 6ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: invented-revenue 5ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > no internal-only field reaches the owner outputs: outdated-site 5ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > the owner view is an allowlist: its keys are exactly these 5ms
+ ✓ tests/semantic-claims.test.ts > part 0: the careful baseline claims are accepted (the rules are not simply rejecting everything) > accepts the scoped website claim and the attributed single-comment claim 50ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": bleeding customers 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": money left on the table 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": customers going to competitors 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": customers going elsewhere 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": leads slipping through 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": forfeiting work 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": driving visitors away 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": missed revenue 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": hurting sales 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": costs the business 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": in the possible fix 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > loss claim without the word "losing": in the owner question 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% thousands, in words": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% a share of callers": { …(1) } 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% one in four": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% "4k" shorthand": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% per month without a figure": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% "/mo" shorthand": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% multiplier": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% most of its leads": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% a significant share": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% currency code": { …(1) } 2ms
+ ✓ tests/authz.test.ts > sessions > anonymous or forged tokens resolve to no actor 115ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > keeps the note internal and withholds any claim that depends on it 49ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > the approved export contains no restricted material and is the exact approved text 9ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > a gated source can never be classified public, whatever the operator selects 13ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > fails closed: evidence with a missing or unknown privacy class is excluded 6ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > instruction-like page text and unreviewed evidence never appear in the owner view 8ms
+ ✓ tests/privacy-report.test.ts > approval is bound to exact content > cannot approve with pending reviews, a stale hash, or out of order; later changes withdraw approval 9ms
+ ✓ tests/privacy-report.test.ts > approval is bound to exact content > "no finding" is a valid, approvable outcome 4ms
+ ✓ tests/privacy-report.test.ts > hostile text is neutralized > escapes Markdown and HTML control characters 0ms
+ ✓ tests/privacy-report.test.ts > hostile text is neutralized > a malicious business name and observation cannot inject markup into the owner export 2ms
+ ✓ tests/verifier.test.ts > verifyProposal > accepts a narrow claim that cites valid evidence 39ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects unknown and other-run evidence IDs 9ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects evidence recorded as being about a different business 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects dollar, percentage and loss claims 4ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects numbers in the observed fact that are not in the cited evidence 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects confidence higher than the weakest cited evidence 2ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects an absence claim with no absence evidence, or without scope 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects an absence claim when any website source in the run failed 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects overgeneralization from a single anecdote and inflated confidence 4ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects stale evidence worded as current 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > 9. a search observation without location is marked geo-uncertain and cannot support a local claim 4ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects instruction-like page text as support for any claim 4ms
+ ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects output that is not the expected shape 3ms
+ ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects proposals that carry extra fields such as actions or tool calls 3ms
+ ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects proposals missing alternatives or an owner question 3ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > no draft before the report is approved, and only from an owner-safe accepted finding 36ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > a claim resting on restricted evidence cannot be used for outreach 15ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > full gate: unapproved fails, wrong/expired/replayed/edited approvals fail, exact approval succeeds once 6ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > an approval issued for one user or draft cannot be used on another 4ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > drafts about synthetic businesses can never be recorded as sent 7ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > copying is logged as copied, not sent 2ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > edits that add loss, dollar, guarantee or urgency claims are refused 1ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > stops at the per-run request cap, keeps evidence, marks the run partial and makes no absence claims 3ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > never exceeds the cost cap when requests cost money 2ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > limits investigations per hour 7ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > bounds retries per investigation 2ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > idempotency key and open-run reuse prevent duplicate runs 2ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a failing transport marks the run failed, never clean 1ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a reasoner that throws or returns junk leaves evidence reviewable and reports the failure 5ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a stopped investigation cannot be resumed or retried 2ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > manual evidence requires provenance and a privacy class, and refuses personal identifiers 5ms
+ ✓ tests/privacy-report.test.ts > hostile text is neutralized > the internal view cannot be exported as an owner document 3ms
+ ✓ tests/outreach-limits.test.ts > log redaction (negative test 3, logs) > removes secrets, cookies, tokens and source bodies 0ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > contradictory comments are both kept visible and both cited 3ms
  ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > rejecting evidence invalidates the claim that depended on it and writes the audit trail 2ms
  ✓ tests/golden.test.ts > identity and duplicates > same-name business in another city stops the run before any evidence is collected 1ms
  ✓ tests/golden.test.ts > identity and duplicates > parent-company wording is flagged as ambiguous 1ms
- ✓ tests/golden.test.ts > identity and duplicates > operator can confirm identity (audited) and resume without refetching the home page 2ms
+ ✓ tests/golden.test.ts > identity and duplicates > operator can confirm identity (audited) and resume without refetching the home page 3ms
  ✓ tests/golden.test.ts > identity and duplicates > duplicate company with two domains is flagged, not merged, and cannot be investigated until resolved 1ms
  ✓ tests/golden.test.ts > identity and duplicates > loading the same synthetic example twice does not create duplicates 0ms
- ✓ tests/golden.test.ts > retry is bounded and idempotent > a timed-out page blocks absence claims, then recovers on retry without duplicate records or evidence 4ms
- ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/investigations/:id is 401 without, or with a forged, session 88ms
- ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/investigations/:id returns status, cost and labelled synthetic data for the owner; 404 for unknown IDs 8ms
- ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/reports/:id/export is 401 anonymous, 403 before approval, and never contains restricted notes 27ms
- ✓ tests/api-routes.test.ts > API routes require a valid session > the data file never contains the raw session token or raw page HTML 1ms
- ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > times out instead of hanging 408ms
+ ✓ tests/golden.test.ts > retry is bounded and idempotent > a timed-out page blocks absence claims, then recovers on retry without duplicate records or evidence 3ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > a website source whose address is not on the business domain is not listed for the owner 2ms
+ ✓ tests/owner-view-audit.test.ts > owner view: field-by-field taint sweep > the owner is not told that an observation was reviewed and held back 4ms
+ ✓ tests/owner-view-audit.test.ts > owner view: text written by the reasoner > a claim citing only public evidence cannot carry restricted text the reasoner was shown 5ms
+ ✓ tests/owner-view-audit.test.ts > owner view: text written by the reasoner > a claim with no recorded reasoning context is withheld from the owner (fail closed) 5ms
+ ✓ tests/owner-view-audit.test.ts > owner export: the approved text is re-checked when it is exported > refuses a stored snapshot that was altered after approval 6ms
+ ✓ tests/owner-view-audit.test.ts > owner export: the approved text is re-checked when it is exported > refuses when the owner version would now be different from what was approved 6ms
+ ✓ tests/owner-view-audit.test.ts > owner export: the approved text is re-checked when it is exported > exports exactly the approved text when nothing changed 5ms
+ ✓ tests/owner-view-audit.test.ts > outreach draft: built only from owner-view fields > contains no internal-only field and no restricted text 7ms
+ ✓ tests/owner-view-audit.test.ts > retry keeps owner unknowns consistent > after a successful retry no unknown remains for the owner 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > quantified impact without "$" or "% five figures": { …(1) } 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: all the time 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: repeatedly 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: known for 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: tends to 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: people say 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: multiple customers 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: chronic 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: generally 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a pattern from one anecdote, paraphrased: nobody 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > certainty or causation: proves 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > certainty or causation: clearly 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > certainty or causation: cause 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > certainty or causation: therefore 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > certainty or causation: which means 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > certainty or causation: will go 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > an interpretation stated flatly, with no hedge at all, is rejected 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a fix that is not conditional on the owner confirming the gap is rejected 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > outcome promise: will increase 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > outcome promise: never miss 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > outcome promise: more bookings 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > outcome promise: ROI 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > comparison with businesses nobody inspected: competitors 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > comparison with businesses nobody inspected: industry standard 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > comparison with businesses nobody inspected: other contractors 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > comparison with businesses nobody inspected: best practice 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > accusatory or disparaging wording is rejected 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > absence_without_scope: unscoped, "zero" 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > absence_without_scope: unscoped, "cannot book" 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > absence_without_scope: unscoped, "phone-only" 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > absence_without_scope: unscoped, "nonexistent" 1ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > absence_without_scope: scope in a different sentence 1ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > absence_without_scope: scope word that is not about pages 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > absence_without_scope: unscoped title 1ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > saying a feature is missing without citing the observation that records it is rejected 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > saying a feature is missing when the investigation found it is rejected 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > behaviour inferred from a web page: nobody answers after hours 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > behaviour inferred from a web page: does not call back 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > behaviour inferred from a web page: slow to respond 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > one person's account stated as plain fact is rejected 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > citing a complaint while leaving out a contrary account on the same topic is rejected 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > naming a source the evidence does not come from: Google reviews 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > naming a source the evidence does not come from: Yelp 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > naming a source the evidence does not come from: a survey 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > naming a source the evidence does not come from: call logs 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > a link or domain that is not in the cited evidence is rejected, wherever it appears 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > an email address or username in a claim is rejected 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > invented_statistic: a spelled-out number that is not in the evidence 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > invented_statistic: a digit that is not in the evidence 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > vague_quantity: "several pages" 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > old evidence: paraphrases of "currently", and omitting the date, are rejected 2ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: a normal page > fetches a page, sends the original hostname, and connects only to the validated address 11ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > follows a same-site redirect (relative and absolute) and records the chain 4ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > stops at the redirect cap, for a chain and for a loop, with a bounded number of requests 8ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > does not follow a redirect to another public site; that site is never contacted 2ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://127.0.0.1/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://127.0.0.1:{CANARY}/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://localhost/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://localhost:{CANARY}/admin without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://[::1]/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://[::ffff:127.0.0.1]/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://169.254.169.254/latest/meta-data/iam/security-credentials/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://10.0.0.7/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://192.168.1.1/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://172.16.0.9/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://100.64.0.1/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://0.0.0.0/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://2130706433/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://0x7f.0.0.1/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://017700000001/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://127.1/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to //10.0.0.7/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://intranet/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://db.internal/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://printer.local/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to file:///etc/passwd without opening a connection 2ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to ftp://10.0.0.7/x without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to gopher://10.0.0.7:70/_x without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to javascript:alert(1) without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to data:text/html,<h1>x</h1> without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://user:pass@{SELF}/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://{SELF}:8080/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a redirect to http://{SELF}:22/ without opening a connection 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > refuses a same-site redirect whose hostname resolves to a private address 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > reports a redirect with no Location, and refuses an unparseable one 2ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: redirects > a large redirect body is not downloaded past the cap, and the redirect is still checked 3ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > unsupported_loss_claim: digit-for-letter swap 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > unsupported_loss_claim: spaced-out letters 1ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > unsupported_quantified_impact: full-width digits and dollar sign 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > obfuscated_text: zero-width characters inside a word 1ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > obfuscated_text: a Cyrillic letter inside a Latin word 2ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > obfuscated_text: right-to-left override 1ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > markup_in_claim: an HTML tag 1ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > markup_in_claim: a Markdown link 1ms
+ ✓ tests/semantic-claims.test.ts > part 1: paraphrased overclaims are rejected > normalization reads look-alike spellings as the plain word 0ms
+ ✓ tests/semantic-claims.test.ts > part 2: KNOWN GAPS. The verifier accepts these; only human review stops them > KNOWN GAP: an evaluative judgment with no evidence behind it 2ms
+ ✓ tests/semantic-claims.test.ts > part 2: KNOWN GAPS. The verifier accepts these; only human review stops them > KNOWN GAP: a consequence implied without any trigger word 1ms
+ ✓ tests/semantic-claims.test.ts > part 2: KNOWN GAPS. The verifier accepts these; only human review stops them > KNOWN GAP: urgency implied by scenario 1ms
+ ✓ tests/semantic-claims.test.ts > part 2: KNOWN GAPS. The verifier accepts these; only human review stops them > KNOWN GAP: a different feature than the one observed ("quote" is not "booking") 2ms
+ ✓ tests/semantic-claims.test.ts > part 2: KNOWN GAPS. The verifier accepts these; only human review stops them > KNOWN GAP: the same overclaim in another language 2ms
+ ✓ tests/semantic-claims.test.ts > part 2: KNOWN GAPS. The verifier accepts these; only human review stops them > KNOWN GAP: a leading owner question 2ms
+ ✓ tests/semantic-claims.test.ts > part 2: KNOWN GAPS. The verifier accepts these; only human review stops them > KNOWN GAP: a slanted alternative explanation 1ms
+ ✓ tests/semantic-claims.test.ts > part 3: mandatory human approval is preserved > a claim that slips past the verifier reaches the owner only after four separate human decisions 8ms
+ ✓ tests/semantic-claims.test.ts > part 3: mandatory human approval is preserved > a model actor cannot take any review, approval, export or outreach step 5ms
+ ✓ tests/semantic-claims.test.ts > part 3: mandatory human approval is preserved > a system actor cannot take any review, approval, export or outreach step 5ms
+ ✓ tests/semantic-claims.test.ts > part 3: mandatory human approval is preserved > reasoner output cannot carry its own approval, status or sharing mark 4ms
+ ✓ tests/semantic-claims.test.ts > part 3: mandatory human approval is preserved > a human decision covers the exact wording only: reworded text needs a new decision and withdraws report approval 5ms
+ ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > times out instead of hanging 406ms
  ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > safeFetch refuses the same loopback server when addressed directly 0ms
+ ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/investigations/:id is 401 without, or with a forged, session 82ms
+ ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/investigations/:id returns status, cost and labelled synthetic data for the owner; 404 for unknown IDs 8ms
+ ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/reports/:id/export is 401 anonymous, 403 before approval, and never contains restricted notes 31ms
+ ✓ tests/authz.test.ts > sessions > a valid session resolves to the human operator, expires, and is invalidated by sign-out 98ms
+ ✓ tests/authz.test.ts > sessions > stores only a hash of the session token 92ms
+ ✓ tests/api-routes.test.ts > API routes require a valid session > the data file never contains the raw session token or raw page HTML 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > rebinding: the socket goes to the address that was validated; a later private answer is never used 65ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > rebinding between redirect hops: the second hop is resolved again and refused when it turns private 2ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to loopback is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to private 10/8 is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to private 172.16/12 is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to private 192.168/16 is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to cloud metadata is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to carrier-grade NAT is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to unspecified is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to IPv6 loopback is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to IPv4-mapped IPv6 is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to IPv6 link-local is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to IPv6 unique local is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to NAT64 embedding is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to public and private mixed is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to private first, public second is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a public-looking hostname that resolves to not an address at all is refused before any connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > a hostname that does not resolve, or resolves to nothing, is unavailable (and retryable), not an error about the business 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: DNS rebinding and private answers > addressing a private or loopback target directly is refused without DNS or a connection 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > bytes that are not HTTP -> malformed_response, never an inspected page 2ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a nonsense status line -> malformed_response, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a different protocol banner -> malformed_response, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a header block larger than the header limit -> malformed_response, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > an invalid chunk size -> malformed_response, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > conflicting Content-Length and Transfer-Encoding -> malformed_response, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a header line with no colon -> malformed_response, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a body shorter than its Content-Length -> incomplete_response, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a chunked body that stops mid-stream -> incomplete_response, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a connection closed before any response -> network_error, never an inspected page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a connection reset after the headers -> incomplete_response|network_error, never an inspected page 32ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > a compressed body sent despite "identity" is refused, not read as an empty-looking page 4ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > bodies that cannot be decoded faithfully are refused 5ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > Latin-1 pages are read correctly when they say so 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > an empty page, a missing content type and non-HTML content are not inspected pages 8ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > status 204 is not treated as a page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > status 206 is not treated as a page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > status 304 is not treated as a page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > status 400 is not treated as a page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > status 405 is not treated as a page 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > status 418 is not treated as a page 1ms
+ ✓ tests/authz.test.ts > sessions > parses the session cookie from a raw header 0ms
+ ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > denies every service call with "not found" and leaves A data unchanged 40ms
+ ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > a business created by A is invisible to B 1ms
+ ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > client input cannot set owner or trust fields (mass assignment) 0ms
+ ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > website input rejects internal hosts, IPs, credentials and non-http schemes 1ms
+ ✓ tests/authz.test.ts > non-human actors cannot take review, approval or outbound actions > model actor is refused 3ms
+ ✓ tests/authz.test.ts > non-human actors cannot take review, approval or outbound actions > system actor is refused 2ms
+ ✓ tests/authz.test.ts > CSRF origin check and CSP > treats only GET/HEAD/OPTIONS as safe 0ms
+ ✓ tests/authz.test.ts > CSRF origin check and CSP > requires a present, matching Origin for state-changing requests 0ms
+ ✓ tests/authz.test.ts > CSRF origin check and CSP > only /login is reachable without a session 0ms
+ ✓ tests/authz.test.ts > CSRF origin check and CSP > production CSP has no unsafe-inline or unsafe-eval and forbids framing 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: malformed responses > status 999 is not treated as a page 1ms
+ ✓ tests/auth-hardening.test.ts > there is no way in without a credential > the auth module exports no passwordless or one-click sign-in 2ms
+ ✓ tests/auth-hardening.test.ts > there is no way in without a credential > no application file offers a sign-in action that takes no secret 1ms
+ ✓ tests/auth-hardening.test.ts > there is no way in without a credential > before setup, a passphrase cannot sign in and no token resolves 1ms
+ ✓ tests/auth-hardening.test.ts > there is no way in without a credential > sessions that predate the credential requirement are not honoured 1ms
+ ✓ tests/auth-hardening.test.ts > first-run setup > writes a one-time code to the sink, stores only its hash, and is idempotent 56ms
+ ✓ tests/auth-hardening.test.ts > first-run setup > a wrong or missing code is refused and counted; the right code with a bad passphrase is refused without burning the code 378ms
+ ✓ tests/auth-hardening.test.ts > first-run setup > on success: only a scrypt hash is stored, the code is destroyed, and setup cannot be run again 84ms
+ ✓ tests/auth-hardening.test.ts > first-run setup > repeated wrong setup codes lock setup, so the code cannot be guessed 207ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: timeouts (one deadline for the whole exchange) > a server that accepts the connection and never answers 506ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses too short 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses empty 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses mostly spaces 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses one repeated character 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses few distinct characters 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses a famous example phrase 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses a famous example phrase, different case 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses a common password that meets the length 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses a keyboard run 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > refuses far too long 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > accepts ordinary long passphrases and never echoes the passphrase in a message 0ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > hashes with a fresh salt each time and verifies only the right passphrase 256ms
+ ✓ tests/auth-hardening.test.ts > passphrase rules and storage > rejects a tampered or malformed stored hash instead of computing it 43ms
+ ✓ tests/auth-hardening.test.ts > sign-in and lockout > the right passphrase signs in; a wrong one is refused, counted and audited without recording what was typed 169ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: timeouts (one deadline for the whole exchange) > headers that arrive one byte at a time 512ms
+ ✓ tests/auth-hardening.test.ts > sign-in and lockout > locks after 5 failures for everyone: there is no per-client key to rotate, and the correct passphrase is refused while locked 338ms
+ ✓ tests/auth-hardening.test.ts > sign-in and lockout > an existing session keeps working during a lockout (the operator is not thrown out by someone guessing) 303ms
+ ✓ tests/auth-hardening.test.ts > sign-in and lockout > OPERATOR_PASSPHRASE: a strong one is required when set; a weak one is never accepted 167ms
+ ✓ tests/auth-hardening.test.ts > sessions > end after inactivity, and after the absolute limit even when active 167ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: timeouts (one deadline for the whole exchange) > a body that stalls after the headers, and a body that drips forever 1010ms
+ ✓ tests/auth-hardening.test.ts > sessions > sign-out ends one session; "sign out everywhere" ends the rest; the number of sessions is capped 384ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: timeouts (one deadline for the whole exchange) > a slow redirect chain cannot multiply the wait without bound: each hop has its own deadline and hops are capped 629ms
+ ✓ tests/auth-hardening.test.ts > sessions > changing the passphrase needs the current one, ends other sessions, and the old passphrase stops working 467ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > answers to localhost 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > answers to localhost:3210 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > answers to 127.0.0.1 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > answers to 127.0.0.1:3210 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > answers to [::1] 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > answers to [::1]:3210 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > answers to LOCALHOST:3210 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "attacker.example:3210" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "rebind.attacker.example" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "127.0.0.1.attacker.example:3210" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "localhost.attacker.example" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "attacker.example#localhost" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "localhost@attacker.example" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "attacker.example/localhost" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "localhost:3210:80" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "localhost:abc" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "0.0.0.0:3210" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "192.168.1.20:3210" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "[::1" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "[::1]evil" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "[fe80::1]:3210" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "local host" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses " " 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses "" 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > refuses a missing Host header, and only adds extra names that are explicitly configured 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > a rebinding page passes the same-origin check (its Origin equals its Host), which is why the host check exists 0ms
+ ✓ tests/auth-hardening.test.ts > host-name check (DNS rebinding against the app itself) > the request proxy applies the host check before anything else 0ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: oversized responses > a declared length over the cap is refused before the body is read 79ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: oversized responses > an endless stream with no declared length is cut off at the cap 122ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: oversized responses > the cap is exact: a body at the limit is read, one byte over is refused 5ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > nothing listening: unavailable and retryable 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 401 -> restricted; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 403 -> restricted; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 407 -> restricted; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 451 -> restricted; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 429 -> restricted; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 404 -> unavailable; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 410 -> unavailable; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 500 -> unavailable; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 502 -> unavailable; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 503 -> unavailable; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > HTTP 504 -> unavailable; the error page body is never returned as content 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > a bot challenge page is reported as restricted and nothing is done to pass it 1ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: source failures > only ever sends GET, with no cookies, credentials or referrer 2ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: TLS (throwaway certificate made with OpenSSL) > an untrusted (self-signed) certificate is a failure, never a page 7ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: TLS (throwaway certificate made with OpenSSL) > a certificate for a different hostname is a failure even when its issuer is trusted 4ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled servers: TLS (throwaway certificate made with OpenSSL) > with a trusted certificate for the right name the page is read, and a redirect down to plain HTTP is refused 6ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled site: the investigation pipeline over real sockets > a healthy site produces scoped, non-synthetic observations awaiting human review 27ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled site: the investigation pipeline over real sockets > a page that times out gives an unknown, never "not found"; a later retry completes the picture 520ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled site: the investigation pipeline over real sockets > a home page that redirects to another site is not read, and nothing is attributed to the business 3ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled site: the investigation pipeline over real sockets > a site that redirects an inner page to the metadata address: blocked, logged as a failure, no absence claims 4ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled site: the investigation pipeline over real sockets > robots.txt is honoured: a disallowed page is never requested, and an unreadable robots.txt means nothing is fetched 5ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled site: the investigation pipeline over real sockets > an unreadable home page (compressed, garbage, oversized, empty, 403) never yields a finding 12ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled site: the investigation pipeline over real sockets > the request cap bounds what a site with many links can make the tool request 7ms
+ ✓ tests/live-fetch-controlled.test.ts > controlled site: the investigation pipeline over real sockets > hostile page content stays inert through the real fetch path 5ms
+ ✓ tests/live-fetch-controlled.test.ts > general live research stays disabled > no environment variable can unlock live fetching or switch the mode 0ms
+ ✓ tests/live-fetch-controlled.test.ts > general live research stays disabled > an investigation refuses a non-synthetic transport under the real configuration, before any request 1ms
+ ✓ tests/live-fetch-controlled.test.ts > general live research stays disabled > application code never constructs the live transport or sets the unlock switch 5ms
 
- Test Files  9 passed (9)
-      Tests  176 passed (176)
-   Start at  11:33:37
-   Duration  598ms (tests 48%, import 45%, transform 6%, worker 2%)
+ Test Files  13 passed (13)
+      Tests  461 passed (461)
+   Start at  12:20:40
+   Duration  4.16s (tests 79%, import 18%, transform 2%, worker 1%)
 

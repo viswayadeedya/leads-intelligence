@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { buildCsp, isPublicPath, isSameOrigin, isStateChanging } from '@/lib/security/origin';
+import { loadConfig } from '@/lib/config';
+import { buildCsp, isAllowedHost, isPublicPath, isSameOrigin, isStateChanging } from '@/lib/security/origin';
 
 const SESSION_COOKIE = 'oi_session';
 
@@ -7,6 +8,15 @@ const SESSION_COOKIE = 'oi_session';
 // route validates the session again against the server-side session store.
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Answer only to our own name. This stops another website from reaching the
+  // app by pointing its hostname at this machine (DNS rebinding).
+  if (!isAllowedHost(request.headers.get('host'), loadConfig().allowedHosts)) {
+    return new NextResponse('Misdirected request: this server does not answer to that host name.', {
+      status: 421,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
 
   if (isStateChanging(request.method) && !isSameOrigin(request.headers.get('origin'), request.headers.get('host'))) {
     if (pathname.startsWith('/api/')) {
