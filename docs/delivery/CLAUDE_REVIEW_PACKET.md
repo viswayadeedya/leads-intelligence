@@ -12,9 +12,47 @@ A reviewer can inspect repository and packet directly when provided access; do n
 
 ---
 
+# Corrections after independent review, branch `review/live-evidence-corrections` — 2026-11-18
+
+**Read this first.** Based on `feature/live-evidence-prototype` at `9fc7241` (reviewed: CONDITIONAL). It contains the corrections for the five findings and their regression tests, nothing else. Verdict requested: PASS / CONDITIONAL / FAIL. The builder does not certify security or results, and does not claim these corrections show commercial opportunity detection or production security.
+
+## C1. Commits and files
+- `git log --oneline feature/live-evidence-prototype..review/live-evidence-corrections`. Diff: `git diff feature/live-evidence-prototype...review/live-evidence-corrections`.
+- Nothing merged or deployed. `main` untouched. `AGENTS.md` untouched and untracked. `research-private/` untracked and unmodified.
+- New: `src/lib/sources/site-statements.ts`; `tests/site-statements.test.ts` (107 tests); `tests/robots-fail-closed.test.ts` (86 tests).
+- Changed: `src/lib/sources/{html-extract,website-evidence,robots}.ts`; `src/lib/security/safe-fetch.ts`; `src/lib/services/{investigations,reports}.ts`; `src/lib/reasoning/verifier.ts`; `src/lib/types.ts`; `src/app/evidence/[runId]/page.tsx`; `tools/live-test/report.ts`; `tests/{extract-robots,live-approved-hosts}.test.ts`; documents.
+
+## C2. Finding by finding
+| Finding | What was wrong at `9fc7241` | What the code does now | Where to check |
+|---|---|---|---|
+| 1. Conflicting office hours | One hours match per page; first matching page reported | Every distinct statement kept with its pages, text and context. `hours_conflict` (neutral) when two statements of the same class and label disagree about a shared day. Neither is chosen | `extractHoursStatements`, `hoursConflict` in `site-statements.ts`; the "published hours" block in `website-evidence.ts`; tests "finding 1" |
+| 2. Emergency wording | Any mention of an emergency became positive availability evidence | Sentences classed affirmative / emergency offer without hours / negative / ambiguous. Only affirmative is positive. Negative and ambiguous are neutral observations. Any wording blocks "not found" | `classifyAvailabilitySentence`; tests "finding 2" |
+| 3. robots.txt | 401, 403, 407, 451, 429, bot checks, off-site redirects and other 4xx were treated as "no rules". A redirected robots.txt could replace another origin's rules | One shared rule: read, empty, or 404/410 are the only answers that permit a request. Everything else: rules unknown, nothing requested, reason recorded | `robotsStateFromOutcome` in `robots.ts`; its two callers in `investigations.ts` and `safe-fetch.ts`; `tests/robots-fail-closed.test.ts` |
+| 4. Evidence integrity | The verifier let a hedged "calls may be missed" through on website evidence | Operational claims need an account of what happened; conversion and revenue claims need the owner's own statement. Website wording is tested for the absence of such claims | `OPERATIONAL_CLAIM`, `COMMERCIAL_CLAIM` in `verifier.ts`; tests "finding 4" |
+| 5. Scope | n/a | Live research still off by default; no new business; private reports untouched; no LLM; no feature | BUILD_LOG entry; `git status`; existing default-off tests |
+
+## C3. Things a reviewer may disagree with
+1. **Stricter than RFC 9309 on robots.txt.** A 401/403/429 on robots.txt now stops the investigation of that origin. The standard would allow crawling. The review asked for fail-closed; the cost is that some sites become uninspectable.
+2. **robots.txt redirects.** The investigation layer follows a robots.txt redirect to another approved hostname and applies what it finds (as the standard describes). The transport's cross-origin check does not: there, an origin's rules must come from that exact host. A same-site redirect of robots.txt requests its target once; if that is a web page the answer is discarded and the rules are unknown.
+3. **"Store hours" and "shop hours" count as office hours.** For a small contractor they usually are. A site with a separate retail store would get a reported conflict that is really two departments.
+4. **An emergency offer without hours is not positive evidence and not an absence.** It is a low-confidence neutral mention. This replaces the last rule of ADR-027.
+5. **A customer comment cannot support a conversion or revenue statement, even hedged.** Only an owner statement can.
+6. **Old stored rows are never promoted.** A one-line excerpt saved under the old rule is reported as a mention at most, and cannot support "not found".
+
+## C4. Test results
+`npm run verify`: exit 0. 16 test files, **715 passed, 0 failed, 0 skipped**. gitleaks: history 0, working folder 0. Project-rule scan 0. Client-bundle check 0. `npm audit --omit=dev` 0. Output: `docs/delivery/test-evidence/verify-output.txt`, `vitest-verbose.txt`.
+
+## C5. Remaining limitations
+See the BUILD_LOG entry of the same name (seven items). In short: pattern matching with unmeasured precision; limited hours parsing; no real page read in this milestone and the private reports are out of date; robots edge cases that fail closed; the verifier is a vocabulary list; the UI labels were not checked in a browser; egress, retention and independent security review are still open.
+
+## C6. One recommended next action
+Independent review of this branch. If it passes, the owner decides whether to approve one supervised re-read of the same three approved sites, which is the only way to learn how these rules behave on the real pages.
+
+---
+
 # Live-evidence prototype, branch `feature/live-evidence-prototype` — 2026-11-18
 
-**Read this first.** It sits on top of the hardening branch (next section), which is now published as `origin/review/milestone-1-hardening` at `4801fe5`. This branch is local only. Verdict requested: PASS / CONDITIONAL / FAIL. The builder does not certify security or results.
+It sits on top of the hardening branch (next section), which is published as `origin/review/milestone-1-hardening` at `4801fe5`. This branch is published as `origin/feature/live-evidence-prototype` at `9fc7241`; it was reviewed (CONDITIONAL) and corrected in the section above. Verdict requested: PASS / CONDITIONAL / FAIL. The builder does not certify security or results.
 
 ## L1. Commits
 - `git log --oneline review/milestone-1-hardening..feature/live-evidence-prototype` lists them. Diff: `git diff review/milestone-1-hardening...feature/live-evidence-prototype`.

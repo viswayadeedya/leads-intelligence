@@ -6,6 +6,7 @@
 // inserted by JavaScript after load is not seen.
 
 import { parse } from 'parse5';
+import { extractAvailabilityStatements, extractHoursStatements, type AvailabilityStatement, type HoursStatement } from './site-statements';
 
 export type ExtractedLink = { href: string; text: string; sameHost: boolean; path: string | null };
 export type ExtractedForm = { fieldCount: number; hasTextarea: boolean; isSearch: boolean };
@@ -213,11 +214,7 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
 
 const BOOKING_TEXT = /\b(book (?:online|now|an? (?:appointment|visit|service))|book|schedule (?:online|service|an? (?:appointment|visit))|schedule now|appointments?|request (?:service|an appointment|a quote|an estimate|a visit)|get a (?:free )?(?:quote|estimate)|online scheduling)\b/i;
 const BOOKING_HOSTS = ['housecallpro.com', 'servicetitan.com', 'getjobber.com', 'calendly.com', 'schedulenow.com', 'workiz.com', 'squareup.com', 'acuityscheduling.com'];
-// Any mention of emergencies counts. An earlier, narrower form ("emergency service") missed
-// "emergency HVAC service" on a real site and produced a false "not found" (live test, business C).
-const AFTER_HOURS = /\b(24\s?\/\s?7|24[- ]hours?|open 24|after[- ]hours|emergenc(?:y|ies)|nights? (?:and|&) weekends?|around the clock|day or night)\b/i;
 const PHONE_SCHEDULING = /\bcall\b[^.\n]{0,50}\b(?:schedule|book|appointment)\b|\b(?:schedule|book)\b[^.\n]{0,40}\bby (?:phone|calling)\b/i;
-const HOURS = /\b(?:mon|monday|tue|tuesday|wed|thu|fri|friday|sat|sun|weekdays)\b[^.\n]{0,40}\b\d{1,2}(?::\d{2})?\s?(?:am|pm|a\.m\.|p\.m\.)/i;
 const COPYRIGHT = /(?:©|\(c\)|copyright)\s*(?:\d{4}\s*[-–]\s*)?(\d{4})/i;
 const INSTRUCTION_LIKE = /\b(ignore (?:all |any )?(?:previous|prior|above|your) instructions|disregard (?:the |all )?(?:previous|prior|above)|you are now\b|system prompt|attention ai\b|ai agents?:|email all leads|reveal (?:your )?(?:api )?keys?|mark this (?:business|report) as approved)/i;
 
@@ -231,9 +228,14 @@ export function excerptAround(text: string, index: number, length: number, radiu
 export type PageSignals = {
   bookingLinks: { text: string; href: string }[];
   contactForms: ExtractedForm[];
-  afterHours: string | null;
+  /**
+   * Every sentence about emergency or after-hours service, classified as
+   * affirmative, emergency_offer, negative or ambiguous. See site-statements.ts.
+   */
+  availability: AvailabilityStatement[];
   phoneScheduling: string | null;
-  hours: string | null;
+  /** Every distinct hours statement on the page, with its kind (office, emergency, qualified). */
+  hoursStatements: HoursStatement[];
   copyrightYear: number | null;
   instructionLike: string | null;
 };
@@ -262,9 +264,9 @@ export function detectSignals(facts: PageFacts): PageSignals {
   return {
     bookingLinks: bookingLinks.slice(0, 5),
     contactForms: facts.forms.filter((f) => !f.isSearch && f.fieldCount >= 2),
-    afterHours: match(facts.text, AFTER_HOURS),
+    availability: extractAvailabilityStatements(facts.text),
     phoneScheduling: match(facts.text, PHONE_SCHEDULING),
-    hours: match(facts.text, HOURS),
+    hoursStatements: extractHoursStatements(facts.text),
     copyrightYear: copyright ? Number(copyright[1]) : null,
     instructionLike: match(facts.text, INSTRUCTION_LIKE),
   };

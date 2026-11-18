@@ -39,11 +39,11 @@ describe('extractPage', () => {
   it('detects signals only from visible content', () => {
     const signals = detectSignals(facts);
     expect(signals.bookingLinks).toHaveLength(0); // script-written and hidden links do not count
-    expect(signals.afterHours).toBeNull();
+    expect(signals.availability).toEqual([]);
     expect(signals.instructionLike).toBeNull();
     expect(signals.contactForms).toHaveLength(1); // search form excluded, hidden input not counted
     expect(signals.contactForms[0]!.fieldCount).toBe(3);
-    expect(signals.hours).toContain('Monday to Friday');
+    expect(signals.hoursStatements.map((h) => h.text)).toEqual([expect.stringContaining('Monday to Friday')]);
   });
 
   it('plans only same-site contact/booking pages, never off-site links or files', () => {
@@ -59,14 +59,15 @@ describe('extractPage', () => {
     expect(big.readLimits).toEqual(expect.arrayContaining(['html_truncated', 'text_truncated']));
   });
 
-  it('treats any mention of emergencies or round-the-clock opening as an after-hours statement (regression: live test, business C)', () => {
-    const afterHours = (body: string) => detectSignals(extractPage(`<html><body><p>${body}</p></body></html>`, 'https://acme.example.invalid/')).afterHours;
-    // the shape of wording that was missed: a word between "emergency" and "service"
-    expect(afterHours('From emergency HVAC service to new installations, we are ready to help.')).toContain('emergency HVAC service');
+  it('notices every mention of emergencies or round-the-clock opening, so none can turn into "not found" (regression: live test, business C)', () => {
+    const wording = (body: string) => detectSignals(extractPage(`<html><body><p>${body}</p></body></html>`, 'https://acme.example.invalid/')).availability;
+    // the shape of wording that was once missed: a word between "emergency" and "service"
+    expect(wording('From emergency HVAC service to new installations, we are ready to help.')).toHaveLength(1);
     for (const text of ['We handle heating emergencies.', 'Open 24 Hours', 'Available 24/7', 'Call us day or night', '24-hour emergency services']) {
-      expect(afterHours(text), text).not.toBeNull();
+      expect(wording(text), text).toHaveLength(1);
     }
-    expect(afterHours('Furnace repair and seasonal maintenance. Office open Monday to Friday.')).toBeNull();
+    expect(wording('Furnace repair and seasonal maintenance. Office open Monday to Friday.')).toEqual([]);
+    // How each mention is classified (offered, not offered, unclear) is tested in site-statements.test.ts.
   });
 
   it('reads locations the way real sites write them, and only real states', () => {

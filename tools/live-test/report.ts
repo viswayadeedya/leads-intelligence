@@ -57,7 +57,7 @@ export function renderInternalMarkdown(db: Db, summary: LiveRunSummary, approved
   L.push(`- Approved hostnames (exact): ${summary.approvedHosts.map((h) => `\`${h}\``).join(', ')}`);
   L.push(`- Pages requested by the investigation: ${run.requestsUsed} of ${run.requestCap} allowed. HTTP requests put on the wire, redirects included: ${summary.wireRequests} of ${summary.limits.maxWireRequests}.`);
   L.push(`- Limits: ${summary.limits.maxPages} pages per site, ${summary.limits.timeoutMs} ms per page, ${summary.limits.maxBytes} bytes per page, ${summary.limits.maxRedirects} redirects, ${summary.limits.minDelayMs} ms between requests.`);
-  L.push(`- robots.txt: ${run.robots.status === 'ok' ? 'read and applied' : run.robots.status === 'none' ? 'none served (404 or refused); nothing was disallowed' : run.robots.status === 'unreachable' ? 'could not be read, so NO page was requested' : 'not requested'}`);
+  L.push(`- robots.txt: ${run.robots.status === 'ok' ? 'read and applied' : run.robots.status === 'none' ? 'none exists (HTTP 404 or 410); nothing was disallowed' : run.robots.status === 'unreachable' ? `its rules could not be determined (${run.robots.reason ?? 'reason not recorded'}), so NO page was requested` : 'not requested'}`);
   L.push('- Method: GET requests for HTML only. No forms submitted, no calls, no logins, no scripts run, no cookies kept.');
 
   L.push('', '## 3. Pages', '');
@@ -74,7 +74,7 @@ export function renderInternalMarkdown(db: Db, summary: LiveRunSummary, approved
 
   L.push('', '## 4. Observations (evidence)', '');
   if (evidence.length === 0) L.push('No observation was recorded.');
-  const order: Evidence['evidenceType'][] = ['phone_listed', 'contact_form', 'booking_link', 'phone_scheduling_statement', 'after_hours_statement', 'hours_listed', 'stale_marker', 'instruction_like_text'];
+  const order: Evidence['evidenceType'][] = ['phone_listed', 'contact_form', 'booking_link', 'phone_scheduling_statement', 'after_hours_statement', 'after_hours_negative', 'after_hours_mention', 'hours_listed', 'hours_conflict', 'stale_marker', 'instruction_like_text'];
   const sorted = [...evidence].sort((a, b) => order.indexOf(a.evidenceType) - order.indexOf(b.evidenceType));
   for (const e of sorted) {
     L.push(`### \`${e.id}\``, '');

@@ -64,7 +64,7 @@ It reads at most 5 pages with GET, honours robots.txt, waits 2 seconds between r
 - `src/lib/security/` — SSRF guard, guarded fetch (locked; tested only against controlled local servers), passphrase hashing, origin/host/CSP helpers.
 - `src/fixtures/golden.ts` — 15 fictional golden cases.
 - `src/app/` — screens, server actions and two read-only API routes. `src/proxy.ts` — CSP, origin check, sign-in gate.
-- `tests/` — 522 tests including the security negative tests. `tests/lab/` is a controlled local network for the fetcher tests; nothing in it leaves this computer.
+- `tests/` — 715 tests including the security negative tests. `tests/lab/` is a controlled local network for the fetcher tests; nothing in it leaves this computer.
 - `tools/live-test/` and `scripts/live-investigate.mjs` — the operator live test (see below). The only code that can make a real request.
 - `supabase/migrations/0001_init.sql` — schema with row-level security. **Not applied, not tested.**
 

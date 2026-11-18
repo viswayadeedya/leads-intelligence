@@ -26,7 +26,7 @@ import dns from 'node:dns';
 import http from 'node:http';
 import https from 'node:https';
 import { classifyAddress, validateFetchUrl } from './net-guard';
-import { ALLOW_ALL, parseRobots, ROBOTS_AGENT, type RobotsPolicy } from '../sources/robots';
+import { robotsPolicyFromState, robotsRefusalReason, robotsStateFromOutcome, type RobotsRefusal, type RobotsState } from '../sources/robots';
 import type { FetchOutcome, PageTransport } from '../sources/transport';
 
 export type ResolvedAddress = { address: string; family: 4 | 6 };
@@ -81,7 +81,7 @@ export type SafeFetchOptions = {
    * followed, so the new origin's robots.txt can be read first. Anything other
    * than 'allow' stops the fetch; the target is then never requested.
    */
-  beforeCrossOrigin?: (next: URL) => Promise<'allow' | 'robots_disallow' | 'robots_unreachable'>;
+  beforeCrossOrigin?: (next: URL) => Promise<'allow' | RobotsRefusal>;
 };
 
 export type SafeFetchDeps = { resolve: Resolver; request: PinnedRequest };
@@ -518,19 +518,16 @@ export function createApprovedLiveTransport(
   // robots.txt belongs to an origin. The investigation reads it for the address it starts
   // from; when the site redirects to another approved origin (for example "www."), that
   // origin's robots.txt is read here, before the redirect is followed.
-  const robotsByOrigin = new Map<string, RobotsPolicy | 'unreachable'>();
+  const robotsByOrigin = new Map<string, RobotsState>();
   /** robots.txt responses already obtained in this run, so no origin is asked for it twice */
   const robotsOutcomeByOrigin = new Map<string, FetchOutcome>();
-  const policyFrom = (res: FetchOutcome): RobotsPolicy | 'unreachable' => {
-    if (res.kind === 'ok') return parseRobots(res.body.slice(0, 20_000), ROBOTS_AGENT);
-    if (res.kind === 'restricted' || (res.kind === 'unavailable' && res.httpStatus !== null && res.httpStatus < 500)) return ALLOW_ALL;
-    return 'unreachable';
-  };
+  // Same rule as the investigation layer (one shared function): only a genuinely absent
+  // robots.txt allows everything; any refusal or error leaves the rules unknown.
   const rememberRobots = (origin: string, res: FetchOutcome): void => {
-    robotsByOrigin.set(origin, policyFrom(res));
+    robotsByOrigin.set(origin, robotsStateFromOutcome(res));
     robotsOutcomeByOrigin.set(origin, res);
   };
-  const beforeCrossOrigin = async (next: URL): Promise<'allow' | 'robots_disallow' | 'robots_unreachable'> => {
+  const beforeCrossOrigin = async (next: URL): Promise<'allow' | RobotsRefusal> => {
     // Reading a robots.txt is always permitted; it is how the rules are learned.
     if (next.pathname === '/robots.txt') return 'allow';
     let policy = robotsByOrigin.get(next.origin);
@@ -548,15 +545,14 @@ export function createApprovedLiveTransport(
         at: new Date(started).toISOString(),
         url: robotsUrl,
         outcome: res.kind,
-        detail: `robots.txt of the redirect target: ${res.kind === 'ok' ? `HTTP ${res.httpStatus}` : res.reason}`,
+        detail: `robots.txt of the redirect target: ${res.kind === 'ok' ? `HTTP ${res.httpStatus}` : res.reason}; rules ${policy.status === 'ok' ? 'read' : policy.status === 'none' ? 'absent, nothing disallowed' : `unknown (${policy.reason ?? 'not determined'}), nothing fetched`}`,
         httpStatus: 'httpStatus' in res ? res.httpStatus : null,
         bytes: res.kind === 'ok' ? res.bytes : null,
         ms: now() - started,
         wireRequests: wire - before,
       });
     }
-    if (policy === 'unreachable') return 'robots_unreachable';
-    return policy.isAllowed(next.pathname || '/') ? 'allow' : 'robots_disallow';
+    return robotsPolicyFromState(policy).isAllowed(next.pathname || '/') ? 'allow' : robotsRefusalReason(policy);
   };
 
   return {
@@ -605,10 +601,12 @@ export function createApprovedLiveTransport(
       const outcome = await safeFetch(url, { ...fetchOptions, beforeCrossOrigin }, { resolve, request: capped });
       if (isRobots) {
         rememberRobots(asked.origin, outcome);
-        // If it was served from another origin of the site, it is that origin's robots.txt too.
+        // If it was served as the robots.txt of another origin of the site, it is that origin's
+        // robots.txt too. Only then: a redirect to some other file there says nothing about
+        // that origin's rules and must not replace them.
         if (outcome.kind === 'ok') {
-          const servedFrom = new URL(outcome.finalUrl).origin;
-          if (servedFrom !== asked.origin) rememberRobots(servedFrom, outcome);
+          const served = new URL(outcome.finalUrl);
+          if (served.origin !== asked.origin && served.pathname === '/robots.txt') rememberRobots(served.origin, outcome);
         }
       }
       lastRequestAt.set(host, now());

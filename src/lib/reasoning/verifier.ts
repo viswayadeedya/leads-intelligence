@@ -175,6 +175,20 @@ const LOCALITY = /\b(?:local(?:ly)?|nearby|in (?:the|this) area|around here|in t
 /** Wording that says how the business behaves, as opposed to what a page shows. */
 const BEHAVIOR = /\b(?:answers?|answered|answering|unanswered|responds?|responded|responding|unresponsive|repl(?:y|ies|ied)|returns? (?:calls?|messages?|voicemails?)|returned|unreturned|not returned|calls? (?:people |customers |them )?back|called back|callbacks?|picks? up|picked up|ignores?|ignored|follows? up|followed up|follow-up|shows? up|showed up|no-shows?|arrives?|arrived|late|waits?|waited|waiting|on hold|goes to voicemail|went to voicemail|hangs? up)\b/i;
 const BEHAVIOR_EVIDENCE: EvidenceType[] = ['customer_comment', 'owner_statement', 'operator_observation'];
+/** Claims about how the business handles contact: calls and messages missed or unanswered, voicemail, reply times. */
+const OPERATIONAL_CLAIM = new RegExp(
+  [
+    '\\b(?:missed|unanswered|dropped|abandoned|unreturned|lost|ignored)\\s+(?:phone\\s+)?(?:calls?|leads?|inquir(?:y|ies)|enquir(?:y|ies)|requests?|messages?|voicemails?|texts?|jobs?|customers?|bookings?|opportunit(?:y|ies))\\b',
+    '\\b(?:calls?|leads?|inquir(?:y|ies)|enquir(?:y|ies)|requests?|messages?|texts?|callers?)\\s+(?:\\w+\\s+){0,4}(?:missed|unanswered|lost|dropped|abandoned|ignored|go(?:es|ing)? to voicemail|not (?:be(?:ing)? )?(?:answered|returned|followed up)|go(?:es|ing)? unanswered|slip(?:s|ping)?)\\b',
+    '\\b(?:miss(?:es|ing)?|los(?:e|es|ing)|drop(?:s|ping)?)\\s+(?:\\w+\\s+){0,2}(?:calls?|leads?|inquir(?:y|ies)|requests?|jobs?|customers?|bookings?)\\b',
+    '\\bvoicemails?\\b',
+    '\\banswer rate\\b',
+    '\\bresponse times?\\b|\\b(?:slow|late|delayed)\\s+(?:to\\s+)?(?:respon\\w+|repl\\w+|follow[- ]?ups?|call[- ]?backs?)\\b',
+  ].join('|'),
+  'i',
+);
+/** Claims about commercial results: conversion, sales, revenue. Only the owner's own account can support these. */
+const COMMERCIAL_CLAIM = /\bconversions?\b|\bconvert(?:s|ed|ing)?\b|\b(?:close|closing|booking|win) rates?\b|\brevenue\b|\bsales\b(?! (?:office|department|dept|team|page|hours|staff|counter|showroom))|\bprofit(?:s|ability)?\b|\bincome\b|\bearnings\b|\bturnover\b|\bbottom line\b/i;
 /** The fact must be reported as someone's account, not asserted. */
 const ATTRIBUTION = /\b(?:comments?|accounts?|posts?|reviews?|reviewers?|commenters?|describes?|described|says?|said|wrote|written|reports?|reported|according to|states?|stated|mentions?|mentioned|recorded|noted|observed by|the operator|the owner (?:says|said|stated|wrote))\b/i;
 
@@ -336,6 +350,21 @@ export function verifyProposal(raw: Proposal, ctx: VerifierContext): { ok: true;
       );
       if (contrary) return fail('omits_contradicting_evidence', 'Another observation on the same topic says the opposite and is not cited.');
     }
+  }
+
+  // ---- operations: a web page is not evidence of how the business performs --------
+  // Missed calls, unanswered messages, voicemail, response times, conversion and revenue
+  // are operational facts. What a website shows cannot support them, hedged or not; they
+  // need an account of what happened (a customer comment, an owner statement, something
+  // the operator observed). Questions, alternatives and conditional fixes are not claims
+  // and are not checked here.
+  if (OPERATIONAL_CLAIM.test(assertive) && !cited.some((e) => BEHAVIOR_EVIDENCE.includes(e.evidenceType))) {
+    return fail('operational_claim_without_operational_evidence', 'The claim is about missed calls, voicemail or reply times, but cites only what a web page shows.');
+  }
+  // Conversion, sales and revenue are known only to the business. A web page cannot
+  // show them and neither can a third party's comment; only the owner's own account can.
+  if (COMMERCIAL_CLAIM.test(assertive) && !cited.some((e) => e.evidenceType === 'owner_statement')) {
+    return fail('commercial_claim_without_owner_evidence', 'The claim is about conversion, sales or revenue. Only the owner’s own account can support that; a web page or a third-party comment cannot.');
   }
 
   // ---- absence: sentence by sentence -----------------------------------------

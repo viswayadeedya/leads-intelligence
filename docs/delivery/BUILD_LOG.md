@@ -1,6 +1,6 @@
 # Build Log
 
-Status: **Phase 0 and Phase 1 (roadmap numbering) built in mock mode. Live mode is not available. Awaiting independent review; nothing here is self-certified.** `main` is commit `22068db` and has since been published to a remote by the owner. The hardening branch is published as `origin/review/milestone-1-hardening` (`4801fe5`). The first live test (three real websites, operator-approved) is on the local branch `feature/live-evidence-prototype`; see the last entry.
+Status: **Phase 0 and Phase 1 (roadmap numbering) built in mock mode. Live mode is not available. Awaiting independent review; nothing here is self-certified.** `main` is commit `22068db` and has since been published to a remote by the owner. The hardening branch is published as `origin/review/milestone-1-hardening` (`4801fe5`). The first live test (three real websites, operator-approved) is published as `origin/feature/live-evidence-prototype` (`9fc7241`); an independent review of it returned CONDITIONAL, and the corrections are on `review/live-evidence-corrections`; see the last entry.
 
 ## Initial handoff
 - Documents and synthetic fixture prepared.
@@ -351,3 +351,61 @@ Each prints the hostnames it may reach, then writes `research-private/live-test/
 
 ### Exact next step
 The operator reads `research-private/live-test/reports/VERIFICATION.md` and the three reports against the live pages, and decides (a) whether a grounded question without a proven problem is enough to start a conversation, and (b) whether to merge the two branches. No further build work is proposed here.
+
+---
+
+## 2026-11-18 — Corrective milestone after independent review (branch `review/live-evidence-corrections`)
+
+**Why:** an independent source-code review of `feature/live-evidence-prototype` at `9fc7241` returned CONDITIONAL with five findings. This entry covers the corrections and nothing else. **No live request was made. No additional business was investigated. The three private reports were not modified. Nothing was merged or deployed. No LLM and no product feature was added.** Live research remains disabled by default. The builder does not certify the result; this branch is for the reviewer.
+
+### Finding 1: conflicting office hours
+- **Defect confirmed.** One hours match was kept per page and only the first matching page was reported. On business C two pages state different closing times; the tool reported one of them.
+- **Change.** New `src/lib/sources/site-statements.ts`. Every distinct hours statement on every page is kept, with the pages it appears on, the text as written and its surrounding context (`hours_listed`, `locator.hoursStatements`). A statement is classed as office hours, emergency or after-hours hours, or hours qualified by a season or a department (showroom, parts counter, sales, dispatch and similar). Two statements are reported as a conflict (`hours_conflict`, neutral polarity) only when they are of the same class with the same qualifier and give different values for a day they both mention. The observation quotes both and ends "Which one is correct was not determined." Nothing picks a schedule.
+- **Not a conflict:** the same schedule written differently; a statement that adds a day the other is silent about; office hours next to 24-hour or emergency hours; office hours next to seasonal or department hours.
+- **Tests** (`tests/site-statements.test.ts`, "finding 1", 23 tests): business C's shape of conflict (made-up page text); consistent schedules on three pages; several day ranges in one statement; two differing statements on one page; office hours against 24-hour emergency service and against "Emergency hours:"; seasonal and department hours; a conflict inside one department; text that is not hours.
+
+### Finding 2: emergency and after-hours wording
+- **Defect confirmed.** One broad pattern treated any mention of an emergency as a positive statement of availability.
+- **Change.** Each sentence that touches the subject is classed as affirmative (states availability around the clock or outside office hours), emergency offer without hours, negative, or ambiguous. Only affirmative wording produces the positive observation `after_hours_statement`. Negative wording produces `after_hours_negative` (neutral). An emergency offer with no hours, advice, a question, a conditional offer, a product feature or mixed wording produces `after_hours_mention` (neutral, low confidence). Any wording at all also blocks "no statement was found", so a mention is neither a yes nor a no. When a site says yes on one page and no on another, both observations are recorded and neither is chosen.
+- **Tests** ("finding 2", 66 tests): tables of affirmative, emergency-offer, negative and ambiguous sentences, including negation words that do not negate the offer ("Don't wait: call our 24/7 emergency line"), slogans ("No emergency is too small"), durations ("within 24 hours", "24 hour notice"), safety advice ("call 911"), blog headlines, questions, members-only and business-hours-only offers; and, through the aggregation, that none of the non-affirmative cases yields positive evidence or a false "not found".
+
+### Finding 3: robots.txt
+- **Audit result: two fail-open defects.** (a) Both layers treated a refused or rate-limited robots.txt (401, 403, 407, 451, 429, a bot check, an off-site redirect) and any other 4xx as "no rules", and went on to request pages. (b) In the transport, a robots.txt request that was redirected to some other file on another approved origin replaced that origin's own rules with the content of that file.
+- **Change.** One function, `robotsStateFromOutcome` in `src/lib/sources/robots.ts`, now decides for both layers. Rules that were read apply. An empty file or HTTP 404/410 means nothing is disallowed. **Everything else means the rules are unknown and no page is requested**: the refusals above, any other status, a server error, a timeout, a dropped connection, an oversized or non-text response, a web page answering for `/robots.txt`. The reason is stored on the run (`robots.reason`) and on each page that was not requested. Refused, rate-limited and unreadable answers are not retried; a server error or timeout may be retried by the operator, and pages held back for that reason are then looked at again under the rules as read. Defect (b) is fixed. The redirect-origin checks are unchanged.
+- **Tests** (`tests/robots-fail-closed.test.ts`, 86 tests, real sockets, loopback only): 23 "rules unknown" answers and 5 "rules known" answers, each run through the investigation layer and through the transport's cross-origin check; obeyed rules; `Disallow: /`; a same-site redirect; an unapproved redirect target that is never looked up or contacted; retry behaviour; the fix for (b); the whole pipeline when a site moves to "www." and that origin refuses robots.txt.
+- **Behaviour change to be aware of.** This is stricter than RFC 9309, which lets a crawler proceed when robots.txt returns a 4xx. A site whose firewall answers 403 for robots.txt can no longer be inspected by this tool at all.
+
+### Finding 4: evidence integrity
+- Website observations and their rationales say what a page shows and "Whether calls are answered, at any hour, was not tested." A test reads every website observation, rationale, unknown and website-only proposal across the fixtures and fails on any wording about missed, lost or unanswered contacts, voicemail, leads, conversion or revenue.
+- Verifier: a claim about missed or unanswered calls and messages, voicemail or reply times, hedged or not, is rejected unless it cites an account of what happened (`operational_claim_without_operational_evidence`). A claim about conversion, sales or revenue is rejected unless it cites the owner's own statement (`commercial_claim_without_owner_evidence`); a third party's comment is not enough. The older loss and quantified-impact rules still apply first.
+- The new observation types do not produce opportunities. A test runs the pipeline on a site with the conflict and an emergency mention and checks: exact source addresses and final addresses, retrieval timestamps, caveats, `needs_review` on every observation, no opportunity, nothing in the owner view.
+- A page stored before this change was searched with the narrower rule that missed wording on business C. Such a page can no longer support "no after-hours statement was found"; the question becomes an unknown.
+
+### Finding 5: scope
+- Live research: still disabled by default; `loadConfig` cannot enable it (existing tests, unchanged and passing).
+- Private reports: untouched. Their modification times (12:51 to 13:14 on 2026-11-18) precede this work. They therefore still show the observations made under the old rules, including the false "not found" on business C.
+- A read-only pass over the stored page extracts of the three runs under the new rules (nothing written): business C now yields `hours_conflict` with two office-hours statements. For A and B the stored one-line excerpt is now reported only as a mention, because an old excerpt is never promoted to a positive statement. Whether A's and B's pages state availability in the new, stricter sense can only be answered by reading the pages again, which needs the owner's approval and was not done.
+
+### Files
+- New: `src/lib/sources/site-statements.ts`, `tests/site-statements.test.ts`, `tests/robots-fail-closed.test.ts`.
+- Changed: `src/lib/sources/{html-extract,website-evidence,robots}.ts`, `src/lib/security/safe-fetch.ts`, `src/lib/services/{investigations,reports}.ts`, `src/lib/reasoning/verifier.ts`, `src/lib/types.ts`, `src/app/evidence/[runId]/page.tsx` (labels for the new observation types), `tools/live-test/report.ts`, `tests/{extract-robots,live-approved-hosts}.test.ts`, `README.md`, delivery documents, `docs/security/SECURITY_REVIEW_CHECKLIST.md`, `docs/delivery/test-evidence/{verify-output,vitest-verbose}.txt`.
+
+### Commands and results
+| Command | Result |
+|---|---|
+| `npm run verify` | exit 0: typecheck; lint 0 errors, 0 warnings; **16 test files, 715 tests passed, 0 failed, 0 skipped** (was 14 files, 522); gitleaks 8.30.1 history 0 findings and working folder 0 findings; project-rule scan 0; production build and client-bundle check 0 findings; `npm audit --omit=dev` 0 vulnerabilities |
+| `npx vitest run --reporter=verbose` | full list in `docs/delivery/test-evidence/vitest-verbose.txt` |
+
+### Remaining limitations (none of these is hidden by a passing test)
+1. **The wording rules are pattern matching over English, checked against sentences the builder wrote.** They are biased toward "ambiguous". Their precision on real sites is not measured. A coverage term next to a service word in an unrelated sense can still be read as affirmative; an unusual negation can be missed.
+2. **Hours parsing is limited.** At least one time must say am or pm; 24-hour clock times are not read; holiday hours and prose ("open late on Thursdays") are not read; at most 8 statements per page. A department label that is not on the list is treated as office hours, which can produce a reported conflict that is really two departments. Conflicts are flagged for a person to read; they are never resolved.
+3. **No real page was read in this milestone.** The corrections were exercised on made-up pages and controlled local servers only. The three private reports are unchanged and out of date with respect to these rules.
+4. **robots.txt:** a rules file that contains the word "captcha" is taken for a bot check and nothing is fetched; reading a robots.txt that redirects within its own site requests the redirect target once and discards it; `Crawl-delay` and `Retry-After` are not read (the fixed 2 second pause applies, and a rate-limited robots.txt is simply not retried); within one run the first answer is kept.
+5. **The verifier is still a list of patterns.** An operational or commercial claim worded outside its vocabulary will pass it. Human review and explicit approval remain the gate.
+6. The evidence desk's labels for the new observation types were not looked at in a browser in this milestone (typecheck and the production build pass).
+7. Unchanged from the previous entry: no network-level egress restriction; retention for live data undefined; no second factor; no CI; no independent security review of this branch yet.
+
+**These corrections do not show that the tool can detect a commercial opportunity, and they are not evidence of production-grade security.**
+
+### Exact next step
+Independent review of `review/live-evidence-corrections`. No further build work is proposed.

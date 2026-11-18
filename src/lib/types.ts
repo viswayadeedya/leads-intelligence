@@ -110,9 +110,13 @@ export type InvestigationRun = {
      * Inner pages are then requested there, under that origin's robots.txt.
      */
     canonicalBase?: string | null;
-    canonicalRobots?: { status: 'ok' | 'none' | 'unreachable'; text: string | null } | null;
+    canonicalRobots?: { status: 'ok' | 'none' | 'unreachable'; text: string | null; reason?: string; retryable?: boolean } | null;
   };
-  robots: { status: 'not_fetched' | 'ok' | 'none' | 'unreachable'; text: string | null };
+  /**
+   * 'none' means robots.txt is genuinely absent (404/410) and nothing is disallowed.
+   * 'unreachable' means its rules could not be determined, for any reason, and NOTHING is fetched.
+   */
+  robots: { status: 'not_fetched' | 'ok' | 'none' | 'unreachable'; text: string | null; reason?: string; retryable?: boolean };
   budgetExhausted: boolean;
   fixtureNotesSeeded: boolean;
   budgetCents: number;
@@ -160,9 +164,15 @@ export type PageExtract = {
   phones: string[];
   bookingLinks: { text: string; href: string }[];
   contactFormFieldCounts: number[];
+  /** LEGACY (rows written before statements were classified): one excerpt, unclassified. */
   afterHours: string | null;
   phoneScheduling: string | null;
+  /** LEGACY: the first hours match only. */
   hours: string | null;
+  /** Every sentence about emergency or after-hours service, classified. Missing on older rows. */
+  availability?: { kind: 'affirmative' | 'emergency_offer' | 'negative' | 'ambiguous'; text: string; why: string }[];
+  /** Every distinct hours statement on the page. Missing on older rows. */
+  hoursStatements?: { text: string; context: string; kind: 'office' | 'emergency' | 'qualified'; qualifier: string | null; key: string; days: Record<string, string> }[];
   copyrightYear: number | null;
   instructionLike: string | null;
   /** Why the page could not be read in full (see PageFacts.readLimits). Missing on older rows. */
@@ -173,9 +183,16 @@ export type EvidenceType =
   | 'phone_listed'
   | 'contact_form'
   | 'booking_link'
+  /** the site STATES availability outside office hours ("24/7", "after-hours service available") */
   | 'after_hours_statement'
+  /** the site says emergency or after-hours service is NOT offered */
+  | 'after_hours_negative'
+  /** the site mentions the subject without stating availability: an emergency offer with no hours, advice, a condition */
+  | 'after_hours_mention'
   | 'phone_scheduling_statement'
   | 'hours_listed'
+  /** two published office-hour statements disagree for the same day; which is right is not determined */
+  | 'hours_conflict'
   | 'stale_marker'
   | 'instruction_like_text'
   | 'customer_comment'

@@ -15,7 +15,7 @@ import { checkIdentityAgainstSite } from '../identity';
 import { newId, sha256 } from '../ids';
 import { logEvent } from '../log';
 import { candidatePaths, detectSignals, extractPage, type PageFacts } from '../sources/html-extract';
-import { ALLOW_ALL, DISALLOW_ALL, parseRobots, ROBOTS_AGENT, type RobotsPolicy } from '../sources/robots';
+import { robotsPolicyFromState, robotsRefusalReason, robotsStateFromOutcome, type RobotsPolicy, type RobotsState } from '../sources/robots';
 import type { FetchOutcome } from '../sources/transport';
 import { aggregateWebsiteEvidence, pathOf } from '../sources/website-evidence';
 import type { Business, Db, ErrorCode, InvestigationRun, PageExtract, RunStatus, SourceRecord, StageKey, StageState, StageStatus } from '../types';
@@ -48,7 +48,9 @@ export function describeOutcome(outcome: FetchOutcome): { detail: string; code: 
   const r = outcome.reason;
   if (outcome.kind === 'restricted') {
     if (r === 'robots_disallow') return { detail: 'Not fetched: disallowed by robots.txt', code: 'access_denied' };
-    if (r === 'robots_unreachable') return { detail: 'Not fetched: robots.txt could not be read, so access was not assumed', code: 'access_denied' };
+    if (r === 'robots_unreachable') return { detail: ROBOTS_UNREACHABLE_DETAIL, code: 'access_denied' };
+    if (r === 'robots_restricted') return { detail: 'Not fetched: the site refused or limited access to robots.txt, so its rules are unknown and access was not assumed', code: 'access_denied' };
+    if (r === 'robots_invalid') return { detail: 'Not fetched: robots.txt did not come back as a readable rules file, so its rules are unknown and access was not assumed', code: 'access_denied' };
     if (r === 'rate_limited') return { detail: 'Rate limited by the site (HTTP 429); stopped', code: 'rate_limited' };
     if (r === 'captcha_or_bot_challenge') return { detail: 'Bot challenge shown; stopped without attempting to pass it', code: 'access_denied' };
     if (r === 'redirected_off_domain') return { detail: 'Redirected to a different site; not followed', code: 'access_denied' };
@@ -98,7 +100,7 @@ function hostApproved(ctx: Ctx, host: string): boolean {
   return (ctx.transport.approvedHosts ?? []).includes(host.toLowerCase());
 }
 
-function toExtract(path: string, facts: PageFacts): PageExtract {
+export function toExtract(path: string, facts: PageFacts): PageExtract {
   const signals = detectSignals(facts);
   return {
     path,
@@ -106,9 +108,11 @@ function toExtract(path: string, facts: PageFacts): PageExtract {
     phones: facts.phones,
     bookingLinks: signals.bookingLinks,
     contactFormFieldCounts: signals.contactForms.map((f) => f.fieldCount),
-    afterHours: signals.afterHours,
+    afterHours: signals.availability[0]?.text ?? null,
     phoneScheduling: signals.phoneScheduling,
-    hours: signals.hours,
+    hours: signals.hoursStatements[0]?.text ?? null,
+    availability: signals.availability,
+    hoursStatements: signals.hoursStatements,
     copyrightYear: signals.copyrightYear,
     instructionLike: signals.instructionLike,
     readLimits: facts.readLimits,
@@ -131,11 +135,18 @@ function takeRequest(ctx: Ctx, runId: string): boolean {
 
 type FetchResult = { record: SourceRecord | null; facts: PageFacts | null };
 
+/** Recorded on a page that was not requested because robots.txt could not be reached (a transient failure). */
+const ROBOTS_UNREACHABLE_DETAIL = 'Not fetched: robots.txt could not be read, so access was not assumed';
+
 async function fetchPath(ctx: Ctx, run: InvestigationRun, base: string, path: string, policy: RobotsPolicy, robotsReason: string, retry: boolean): Promise<FetchResult> {
   const url = `${base}${path}`;
   const existing = ctx.store.snapshot().sourceRecords.find((r) => r.runId === run.id && r.sourceType === 'website' && r.sourceUrl === url) ?? null;
   if (existing && existing.accessStatus === 'ok') return { record: existing, facts: null };
-  if (existing && !(retry && existing.retryable)) return { record: existing, facts: null };
+  // On a retry, a page is looked at again if its own fetch failed transiently, or if it was
+  // held back only because robots.txt could not be reached. Either way the rules as they
+  // are known NOW decide below whether it is requested.
+  const heldForRobots = existing?.accessStatus === 'restricted' && existing.accessDetail === ROBOTS_UNREACHABLE_DETAIL;
+  if (existing && !(retry && (existing.retryable || heldForRobots))) return { record: existing, facts: null };
 
   let outcome: FetchOutcome;
   let facts: PageFacts | null = null;
@@ -319,21 +330,22 @@ async function advance(ctx: Ctx, runId: string, retry: boolean): Promise<void> {
     mutateRun(ctx, runId, (r) => setStage(r, 'identity', 'running', 'Checking the business against its own website.', nowIso()));
 
     // robots.txt first. It is an access signal we honor, not a permission grant.
-    if (run.robots.status === 'not_fetched' || (retry && run.robots.status === 'unreachable')) {
+    // Only a robots.txt that is genuinely absent (404/410) means "nothing is disallowed".
+    // A refusal, a rate limit, a bot check, an off-site redirect, a server error or an
+    // unreadable answer all mean the rules are unknown, and then nothing is fetched.
+    if (run.robots.status === 'not_fetched' || (retry && run.robots.status === 'unreachable' && run.robots.retryable !== false)) {
       if (takeRequest(ctx, runId)) {
-        const outcome = await ctx.transport.fetchPage(`${base}/robots.txt`, 0);
+        const state = robotsStateFromOutcome(await ctx.transport.fetchPage(`${base}/robots.txt`, 0));
         mutateRun(ctx, runId, (r) => {
-          if (outcome.kind === 'ok') r.robots = { status: 'ok', text: outcome.body.slice(0, 20_000) };
-          else if (outcome.kind === 'restricted') r.robots = { status: 'none', text: null };
-          else if (outcome.kind === 'unavailable' && outcome.httpStatus !== null && outcome.httpStatus < 500) r.robots = { status: 'none', text: null };
-          else r.robots = { status: 'unreachable', text: null };
+          r.robots = state;
         });
       }
     }
     run = getOwned(ctx.store.snapshot().runs, runId, ctx.actor, 'Investigation');
-    const policy: RobotsPolicy =
-      run.robots.status === 'ok' ? parseRobots(run.robots.text ?? '', ROBOTS_AGENT) : run.robots.status === 'none' ? ALLOW_ALL : DISALLOW_ALL;
-    const robotsReason = run.robots.status === 'ok' ? 'robots_disallow' : 'robots_unreachable';
+    // 'not_fetched' here means the request budget was already spent: treated as unknown rules.
+    const baseRobots: RobotsState = run.robots.status === 'not_fetched' ? { status: 'unreachable', text: null, reason: 'fetch_failed', retryable: true } : (run.robots as RobotsState);
+    const policy: RobotsPolicy = robotsPolicyFromState(baseRobots);
+    const robotsReason = robotsRefusalReason(baseRobots);
 
     const home = await fetchPath(ctx, run, base, '/', policy, robotsReason, retry);
     if (home.facts) {
@@ -392,14 +404,10 @@ async function advance(ctx: Ctx, runId: string, retry: boolean): Promise<void> {
         }
       }
       if (canonical) {
-        let robots = run.queryScope.canonicalRobots ?? null;
-        if (!robots || (retry && robots.status === 'unreachable')) {
-          robots = { status: 'unreachable', text: null };
-          if (takeRequest(ctx, runId)) {
-            const outcome = await ctx.transport.fetchPage(`${canonical}/robots.txt`, 0);
-            if (outcome.kind === 'ok') robots = { status: 'ok', text: outcome.body.slice(0, 20_000) };
-            else if (outcome.kind === 'restricted' || (outcome.kind === 'unavailable' && outcome.httpStatus !== null && outcome.httpStatus < 500)) robots = { status: 'none', text: null };
-          }
+        let robots: RobotsState | null = (run.queryScope.canonicalRobots as RobotsState | null | undefined) ?? null;
+        if (!robots || (retry && robots.status === 'unreachable' && robots.retryable !== false)) {
+          robots = { status: 'unreachable', text: null, reason: 'fetch_failed', retryable: true };
+          if (takeRequest(ctx, runId)) robots = robotsStateFromOutcome(await ctx.transport.fetchPage(`${canonical}/robots.txt`, 0));
         }
         const saved = robots;
         mutateRun(ctx, runId, (r) => {
@@ -407,8 +415,8 @@ async function advance(ctx: Ctx, runId: string, retry: boolean): Promise<void> {
           r.queryScope.canonicalRobots = saved;
         });
         pageBase = canonical;
-        pagePolicy = saved.status === 'ok' ? parseRobots(saved.text ?? '', ROBOTS_AGENT) : saved.status === 'none' ? ALLOW_ALL : DISALLOW_ALL;
-        pageRobotsReason = saved.status === 'ok' ? 'robots_disallow' : 'robots_unreachable';
+        pagePolicy = robotsPolicyFromState(saved);
+        pageRobotsReason = robotsRefusalReason(saved);
       }
       for (const path of run.queryScope.plannedPaths ?? []) {
         await fetchPath(ctx, run, pageBase, path, pagePolicy, pageRobotsReason, retry);
@@ -560,7 +568,8 @@ export async function retryFailedSources(ctx: Ctx, runId: string): Promise<Inves
   requireHuman(ctx.actor, 'Retrying a source');
   mutateRun(ctx, runId, (r, db) => {
     if (r.status !== 'partial') throw new AppError('conflict', 'Only a partial investigation has sources to retry.');
-    const retryable = db.sourceRecords.some((s) => s.runId === runId && s.retryable) || r.robots.status === 'unreachable';
+    // A robots.txt that was refused, rate limited or unreadable is not asked for again; only a transient failure is.
+    const retryable = db.sourceRecords.some((s) => s.runId === runId && s.retryable) || (r.robots.status === 'unreachable' && r.robots.retryable !== false);
     if (!retryable) throw new AppError('conflict', 'Nothing to retry: the remaining sources are restricted or permanently unavailable. Restricted sources are not retried.');
     if (r.retriesUsed >= ctx.config.maxRetries) {
       throw new AppError('rate_limited', `Retry limit reached (${ctx.config.maxRetries} per investigation).`);
@@ -646,7 +655,7 @@ export function getRunDetail(ctx: Ctx, runId: string): RunDetail {
     canRetry:
       run.status === 'partial' &&
       run.retriesUsed < ctx.config.maxRetries &&
-      (db.sourceRecords.some((s) => s.runId === runId && s.retryable) || run.robots.status === 'unreachable'),
+      (db.sourceRecords.some((s) => s.runId === runId && s.retryable) || (run.robots.status === 'unreachable' && run.robots.retryable !== false)),
     duplicateOf: business.possibleDuplicateOf ? (db.businesses.find((b) => b.id === business.possibleDuplicateOf && b.ownerId === ctx.actor.userId) ?? null) : null,
   };
 }

@@ -88,6 +88,7 @@ describe('approved-host transport against controlled servers', () => {
     const elsewhereSite = await lab.site(elsewhere, (_req, res) => sendHtml(res, html('someone else')));
     const site = await lab.site(host, (req, res) => {
       if (req.headers.host === host && req.url === '/') redirect(res, `http://www.${host}/`, 301);
+      else if (req.url === '/robots.txt') sendHtml(res, html('Not found'), 404);
       else if (req.url === '/out') redirect(res, `http://${elsewhere}/`);
       else sendHtml(res, html('<h1>www home</h1>'));
     });

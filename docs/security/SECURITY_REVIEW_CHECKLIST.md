@@ -65,3 +65,17 @@ First real requests made by this project: three operator-approved business websi
 | Evidence integrity | Manual check of 14 observations against the live pages (private verification file) | 12 verified, 1 incomplete, **1 false "not found"**; rule fixed with a regression test | |
 | Outbound safety | End-to-end test: nothing reviewed, approved, drafted or sent | Pass. All observations remain `needs_review` | |
 | Retention | Live data sits in one ignored folder | **NOT DEFINED.** Delete the folder by hand | |
+
+---
+
+## Builder-submitted evidence — branch `review/live-evidence-corrections` (2026-11-18). NOT A REVIEW.
+Corrections after the independent review of `9fc7241`. No real site was contacted in this milestone. The reviewer fills in the verdict column.
+
+| Gate | Builder's evidence | Builder's claim | Reviewer verdict |
+|---|---|---|---|
+| Access restrictions (robots.txt) | `tests/robots-fail-closed.test.ts` (86, real sockets, loopback only): 23 answers that leave the rules unknown and 5 that do not, at the investigation layer and at the transport's cross-origin check | Two fail-open defects found and fixed: refused or rate-limited robots.txt was treated as "no rules"; a redirected robots.txt could replace another origin's rules. Now only a read file, an empty file or 404/410 permit a request. **Stricter than RFC 9309. Keyword bot-check detection can misfire, toward not fetching** | |
+| SSRF/egress | Existing suites unchanged and passing; redirect-origin checks re-tested in the new file | No change to the allowlist, DNS pinning, redirect limits, budgets, timeouts or size limits. **Network-level egress restriction: still NOT IMPLEMENTED** | |
+| Evidence integrity | `tests/site-statements.test.ts` (107) | Conflicting hours reported, not resolved. Only explicit availability wording is positive evidence. Operational and commercial claims rejected without matching evidence. **Pattern matching; precision on real pages not measured** | |
+| Privacy | `git status`, staged-content search for real names, gitleaks | `research-private/` untracked and unmodified. No real business named in tracked files | |
+| Outbound safety | unchanged | No send code exists. All observations remain `needs_review` | |
+

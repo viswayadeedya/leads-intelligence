@@ -156,11 +156,32 @@ Entries below: 2026-11-18, branch `feature/live-evidence-prototype`.
 - robots.txt is read per origin, including the origin a redirect leads to, before anything is requested there.
 - The investigation continues on the origin the home page was served from, when that host is approved.
 - HTTPS-to-HTTP redirects stay refused unless the operator allows plain HTTP for that exact hostname; observations from pages that arrived over plain HTTP carry a caveat.
-- Any mention of emergencies counts as an after-hours statement (a narrower rule produced a false "not found" on a real site).
+- Any mention of emergencies counts as an after-hours statement (a narrower rule produced a false "not found" on a real site). **Withdrawn by ADR-028.**
 **Limit:** these were written after seeing three sites. They are not validated beyond those.
+
+## ADR-028 — Hours and availability are reported as statements, never resolved
+**Context:** independent review of `9fc7241`. One hours match was kept per page, and any mention of an emergency counted as a positive after-hours statement (the last rule of ADR-027).
+**Decision:**
+- Every distinct hours statement is kept with its pages, text and context. Statements are classed as office, emergency/after-hours, or qualified by a season or department.
+- A conflict is reported only between statements of the same class and label that give different values for a shared day. The tool never says which is right.
+- Wording about emergency or after-hours service is classed affirmative, emergency offer without hours, negative or ambiguous. Only affirmative wording is positive evidence. Any wording at all prevents "no statement was found".
+- The last rule of ADR-027 is withdrawn.
+**Why:** a web page can show what a business says. It cannot show which of two statements is current, and a mention is not an offer.
+**Cost:** more observations are neutral and low-confidence, so fewer feed a claim. That is the intended direction.
+
+## ADR-029 — robots.txt: one rule for both layers, fail closed
+**Decision:** `robotsStateFromOutcome` is the only place that turns an answer into a policy. Rules read, an empty file, or HTTP 404/410 permit requests. Every other answer means the rules are unknown and nothing is requested from that origin. Refusals, rate limits and unreadable answers are not retried; server errors and timeouts may be retried by the operator.
+**Why:** a refusal to show the rules is an access restriction, and the security protocol says to stop at access restrictions.
+**Cost:** stricter than RFC 9309. Sites that block robots.txt cannot be inspected.
+
+## ADR-030 — Operational and commercial claims need matching evidence
+**Decision:** a claim about missed or unanswered contact, voicemail or reply times must cite an account of what happened (a comment, an owner statement, an operator observation). A claim about conversion, sales or revenue must cite the owner's own statement. Hedging does not exempt a claim. Questions to the owner, alternative explanations and conditional fixes are not claims and are not checked by these two rules.
+**Why:** a website observation is not an operational fact, and only the business knows its own results.
+**Limit:** the rules are vocabulary lists. They do not understand a sentence.
 
 ## Open questions that are the owner's to decide (current)
 1. **Third-party comments in owner reports** (unchanged).
 2. **Is a grounded question enough?** Three real investigations produced no defensible opportunity and one or two fair questions each. Whether to approach an owner on that basis is a commercial decision, not an engineering one.
 3. **Merge** of `review/milestone-1-hardening` and `feature/live-evidence-prototype`.
 4. **Retention for live data**, and network-level egress control, before any further live use.
+5. **A supervised re-read of the three approved sites** under the corrected rules (ADR-028, ADR-029). Not done; it makes real requests and needs the owner's approval. The existing private reports predate the corrections.

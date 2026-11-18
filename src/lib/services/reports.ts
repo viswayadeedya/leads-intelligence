@@ -210,7 +210,7 @@ function journey(evidence: Evidence[], websiteRecords: SourceRecord[], pending: 
     { step: 'Discovery (search, AI answers)', state: 'Not checked', detail: 'Search and AI-search visibility were not sampled.' },
     row('Contact (phone, form)', ['phone_listed', 'contact_form']),
     row('Booking (online request or scheduling)', ['booking_link', 'phone_scheduling_statement']),
-    row('After-hours availability', ['after_hours_statement', 'hours_listed']),
+    row('After-hours availability', ['after_hours_statement', 'after_hours_negative', 'after_hours_mention', 'hours_listed', 'hours_conflict']),
     row('Response and follow-up', ['customer_comment', 'owner_statement'], false),
   ];
 }
