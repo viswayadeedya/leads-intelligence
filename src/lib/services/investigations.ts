@@ -81,9 +81,21 @@ export function describeOutcome(outcome: FetchOutcome): { detail: string; code: 
  * configuration file or environment variable can set it.
  */
 function assertTransportAllowed(ctx: Ctx): void {
-  if (!ctx.transport.synthetic && ctx.config.liveFetchUnlocked !== true) {
+  if (ctx.transport.synthetic) return;
+  if (ctx.config.liveFetchUnlocked !== true) {
     throw new AppError('forbidden', 'Live website fetching is not enabled in this build. Nothing was requested.');
   }
+  // A transport that makes real requests must be limited to named hosts.
+  const approved = ctx.transport.approvedHosts;
+  if (!Array.isArray(approved) || approved.length === 0) {
+    throw new AppError('forbidden', 'A live transport must declare the exact hostnames the operator approved. Nothing was requested.');
+  }
+}
+
+/** For a transport that makes real requests: is this exact host on the operator's list? */
+function hostApproved(ctx: Ctx, host: string): boolean {
+  if (ctx.transport.synthetic) return true;
+  return (ctx.transport.approvedHosts ?? []).includes(host.toLowerCase());
 }
 
 function toExtract(path: string, facts: PageFacts): PageExtract {
@@ -99,6 +111,7 @@ function toExtract(path: string, facts: PageFacts): PageExtract {
     hours: signals.hours,
     copyrightYear: signals.copyrightYear,
     instructionLike: signals.instructionLike,
+    readLimits: facts.readLimits,
   };
 }
 
@@ -285,13 +298,15 @@ async function advance(ctx: Ctx, runId: string, retry: boolean): Promise<void> {
 
   // ---- identity + website --------------------------------------------
   const host = business.domain;
-  const canHandle = host ? (ctx.transport.canHandle ? ctx.transport.canHandle(host) : true) : false;
+  const canHandle = host ? hostApproved(ctx, host) && (ctx.transport.canHandle ? ctx.transport.canHandle(host) : true) : false;
   let identityBlocked = false;
 
   if (!host || !canHandle) {
     const why = !host
       ? 'No website is on record for this business.'
-      : 'Mock mode has no synthetic fixture for this website, and live website checks are not enabled in this build. Nothing was fetched.';
+      : ctx.transport.synthetic
+        ? 'Mock mode has no synthetic fixture for this website, and live website checks are not enabled in this build. Nothing was fetched.'
+        : 'This website is not on the list of hostnames approved for this live test. Nothing was fetched.';
     mutateRun(ctx, runId, (r) => {
       setStage(r, 'identity', 'not_checked', `${why} Identity was not checked against a website.`, nowIso());
       setStage(r, 'website', 'not_checked', why, nowIso());

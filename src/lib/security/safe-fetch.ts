@@ -7,10 +7,20 @@
 // site that was asked for.
 //
 // STATUS: exercised against controlled HTTP and TLS servers on this machine
-// (tests/live-fetch-controlled.test.ts) and by unit tests with injected DNS
-// (tests/ssrf.test.ts). It has NOT been used against real third-party sites,
-// and the application never constructs it: see src/lib/runtime.ts and the
-// lock in src/lib/services/investigations.ts.
+// (tests/live-fetch-controlled.test.ts, tests/live-approved-hosts.test.ts) and
+// by unit tests with injected DNS (tests/ssrf.test.ts). The web application
+// never constructs it (src/lib/runtime.ts). The only way to make a real request
+// is the operator live test in tools/live-test, which can reach nothing but
+// hostnames the operator approved, exactly, in advance.
+//
+// LAYERS. An address is checked three times, by three separate pieces of code:
+//   1. the transport refuses any URL whose host is not on the approved list;
+//   2. safeFetch validates the URL, every DNS answer and every redirect hop;
+//   3. the socket layer (createPinnedRequest) refuses, at connect time, any
+//      host not on the approved list, any non-public address and any port
+//      other than 80/443, and checks the peer address after connecting.
+// All three are in this process. There is NO operating-system or network
+// firewall rule behind them; see docs/delivery/DECISIONS.md ADR-024.
 
 import dns from 'node:dns';
 import http from 'node:http';
@@ -38,7 +48,7 @@ export type RawResponse = {
 };
 export type PinnedRequest = (target: PinnedTarget) => Promise<RawResponse>;
 
-export type RequestFailure = 'timeout' | 'malformed_response' | 'tls_error' | 'incomplete_response' | 'connection_failed';
+export type RequestFailure = 'timeout' | 'malformed_response' | 'tls_error' | 'incomplete_response' | 'connection_failed' | 'egress_refused';
 
 /** A failed request, already sorted into a category. The message is the category; no socket detail leaves this module. */
 export class PinnedRequestError extends Error {
@@ -101,7 +111,25 @@ export type PinnedRequestOptions = {
   dial?: (to: { address: string; port: number; family: 4 | 6 }) => { address: string; port: number; family: 4 | 6 };
   /** Extra trusted certificate authority (PEM), for a controlled TLS test server. */
   ca?: string;
+  /**
+   * Exact hostnames this socket layer may connect to. When set, anything else
+   * is refused here, whatever the caller validated or failed to validate.
+   */
+  approvedHosts?: ReadonlySet<string>;
+  /** Called for every HTTP request actually put on the wire (each redirect hop is one). */
+  onRequest?: (info: { hostname: string; address: string; port: number }) => void;
 };
+
+/**
+ * Connect-time egress check. Independent of URL validation: it looks at the
+ * literal address and port about to be dialled. Returns a reason, or null.
+ */
+export function egressRefusal(to: { hostname: string; address: string; port: number }, approvedHosts?: ReadonlySet<string>): string | null {
+  if (to.port !== 80 && to.port !== 443) return 'port';
+  if (!classifyAddress(to.address).ok) return 'address';
+  if (approvedHosts && !approvedHosts.has(to.hostname.toLowerCase().replace(/\.$/, ''))) return 'host';
+  return null;
+}
 
 /** Sends one GET to the pinned address while keeping the original hostname for Host and SNI. */
 export function createPinnedRequest(options: PinnedRequestOptions = {}): PinnedRequest {
@@ -111,6 +139,12 @@ export function createPinnedRequest(options: PinnedRequestOptions = {}): PinnedR
       const isHttps = url.protocol === 'https:';
       const lib = isHttps ? https : http;
       const wanted = { address: target.address, port: url.port ? Number(url.port) : isHttps ? 443 : 80, family: target.family };
+      // Egress check on the address the fetcher decided on, before anything is dialled.
+      if (egressRefusal({ hostname: url.hostname, address: wanted.address, port: wanted.port }, options.approvedHosts)) {
+        reject(new PinnedRequestError('egress_refused'));
+        return;
+      }
+      options.onRequest?.({ hostname: url.hostname, address: wanted.address, port: wanted.port });
       const socketTarget = options.dial ? options.dial(wanted) : wanted;
       let settled = false;
       const finish = (fn: () => void) => {
@@ -189,6 +223,18 @@ export function createPinnedRequest(options: PinnedRequestOptions = {}): PinnedR
         finish(() => reject(new PinnedRequestError('timeout')));
       }, target.timeoutMs);
       req.on('error', (e) => finish(() => reject(new PinnedRequestError(classifyFailure(e)))));
+      // After connecting, the peer must be the address that was pinned. Anything else is dropped unread.
+      req.on('socket', (socket) => {
+        const check = () => {
+          const peer = (socket.remoteAddress ?? '').replace(/^::ffff:/, '');
+          if (peer !== '' && peer !== socketTarget.address.replace(/^::ffff:/, '')) {
+            req.destroy();
+            finish(() => reject(new PinnedRequestError('egress_refused')));
+          }
+        };
+        if (socket.connecting) socket.once('connect', check);
+        else check();
+      });
       req.end();
     });
 }
@@ -270,6 +316,7 @@ export async function safeFetch(rawUrl: string, options: SafeFetchOptions, deps:
       if (failure === 'timeout') return { kind: 'error', reason: 'timeout', retryable: true };
       if (failure === 'malformed_response') return { kind: 'error', reason: 'malformed_response', retryable: false };
       if (failure === 'tls_error') return { kind: 'unavailable', reason: 'tls_error', httpStatus: null, retryable: false };
+      if (failure === 'egress_refused') return blocked('egress_refused');
       if (failure === 'incomplete_response') return { kind: 'unavailable', reason: 'incomplete_response', httpStatus: null, retryable: true };
       return { kind: 'unavailable', reason: 'network_error', httpStatus: null, retryable: true };
     }
@@ -339,19 +386,144 @@ export async function safeFetch(rawUrl: string, options: SafeFetchOptions, deps:
 
 export const DEFAULT_USER_AGENT = 'OpportunityIntelligenceResearch/0.1 (single-operator research tool; honors robots.txt)';
 
+export type RequestLogEntry = {
+  at: string;
+  url: string;
+  outcome: FetchOutcome['kind'] | 'refused';
+  detail: string;
+  httpStatus: number | null;
+  bytes: number | null;
+  ms: number;
+  /** HTTP requests actually sent for this page, redirects included */
+  wireRequests: number;
+};
+
+export type ApprovedLiveOptions = {
+  /** Exact hostnames, as approved by the operator. No wildcards, no "www." added for you. */
+  approvedHosts: readonly string[];
+  timeoutMs: number;
+  maxBytes: number;
+  maxRedirects: number;
+  /** minimum pause between two requests to the same host */
+  minDelayMs: number;
+  /** hard ceiling on HTTP requests put on the wire, across all hosts, for this transport */
+  maxWireRequests: number;
+  userAgent?: string;
+};
+
+export type ApprovedLiveDeps = {
+  resolve: Resolver;
+  /** builds the socket layer; tests substitute one that dials controlled local servers */
+  createRequest: (options: PinnedRequestOptions) => PinnedRequest;
+  sleep: (ms: number) => Promise<void>;
+  now: () => number;
+};
+
+export const MAX_APPROVED_HOSTS = 10;
+
+/** Returns the cleaned list, or throws naming the entry that is not an exact public hostname. */
+export function validateApprovedHosts(hosts: readonly string[]): string[] {
+  if (!Array.isArray(hosts) || hosts.length === 0) throw new Error('No approved hostnames were given. A live test needs at least one exact hostname.');
+  if (hosts.length > MAX_APPROVED_HOSTS) throw new Error(`Too many approved hostnames (${hosts.length}). This test mode allows at most ${MAX_APPROVED_HOSTS}.`);
+  const out: string[] = [];
+  for (const raw of hosts) {
+    const host = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+    // Exact names only: letters, digits, dots and hyphens. No scheme, path, port, wildcard or address.
+    if (!/^(?=.{4,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(host)) {
+      throw new Error(`"${String(raw).slice(0, 80)}" is not an exact hostname (for example "example.com").`);
+    }
+    const verdict = validateFetchUrl(`https://${host}/`);
+    if (!verdict.ok) throw new Error(`"${host}" cannot be approved: ${verdict.reason}.`);
+    if (!out.includes(host)) out.push(host);
+  }
+  return out;
+}
+
 /**
- * Live transport. Present for Phase 2. The application does not construct it,
- * and investigations refuse any non-synthetic transport unless the in-memory
- * `liveFetchUnlocked` switch is set, which no environment variable can do.
+ * The only transport that makes real requests. It can reach the approved
+ * hostnames and nothing else: not their subdomains, not the sites they link or
+ * redirect to. GET only; no cookies, no credentials, no form submission.
  */
-export function createLiveTransport(
-  options: Omit<SafeFetchOptions, 'userAgent'> & { userAgent?: string },
-  deps: SafeFetchDeps = { resolve: systemResolver, request: nodePinnedRequest },
-): PageTransport {
+export function createApprovedLiveTransport(
+  options: ApprovedLiveOptions,
+  deps: Partial<ApprovedLiveDeps> = {},
+): PageTransport & { readonly approvedHosts: readonly string[]; readonly log: RequestLogEntry[]; readonly wireRequests: () => number } {
+  const approved = validateApprovedHosts(options.approvedHosts);
+  const approvedSet: ReadonlySet<string> = new Set(approved);
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const now = deps.now ?? (() => Date.now());
+  const resolve = deps.resolve ?? systemResolver;
+  let wire = 0;
+  const request = (deps.createRequest ?? createPinnedRequest)({
+    approvedHosts: approvedSet,
+    onRequest: () => {
+      wire++;
+    },
+  });
+  // The ceiling is enforced where requests are sent, so redirect hops count too.
+  const capped: PinnedRequest = (target) => {
+    if (wire >= options.maxWireRequests) return Promise.reject(new PinnedRequestError('egress_refused'));
+    return request(target);
+  };
+  const lastRequestAt = new Map<string, number>();
+  const log: RequestLogEntry[] = [];
+
   return {
-    id: 'live-http',
+    id: 'live-approved-hosts',
     synthetic: false,
     costCentsPerRequest: 0,
-    fetchPage: (url) => safeFetch(url, { ...options, userAgent: options.userAgent ?? DEFAULT_USER_AGENT }, deps),
+    approvedHosts: approved,
+    log,
+    wireRequests: () => wire,
+    canHandle: (host) => approvedSet.has(host.toLowerCase()),
+    async fetchPage(url) {
+      const started = now();
+      const before = wire;
+      const record = (outcome: FetchOutcome | null, detail: string): void => {
+        log.push({
+          at: new Date(started).toISOString(),
+          url,
+          outcome: outcome ? outcome.kind : 'refused',
+          detail,
+          httpStatus: outcome && 'httpStatus' in outcome ? outcome.httpStatus : null,
+          bytes: outcome && outcome.kind === 'ok' ? outcome.bytes : null,
+          ms: now() - started,
+          wireRequests: wire - before,
+        });
+      };
+      let host: string;
+      try {
+        host = new URL(url).hostname.toLowerCase();
+      } catch {
+        record(null, 'invalid_url');
+        return blocked('invalid_url');
+      }
+      // Layer 1: nothing is resolved or requested for a host that is not on the list.
+      if (!approvedSet.has(host)) {
+        record(null, 'host_not_approved');
+        return blocked('host_not_approved');
+      }
+      const last = lastRequestAt.get(host);
+      if (last !== undefined) {
+        const wait = options.minDelayMs - (now() - last);
+        if (wait > 0) await sleep(wait);
+      }
+      lastRequestAt.set(host, now());
+      const outcome = await safeFetch(
+        url,
+        {
+          timeoutMs: options.timeoutMs,
+          maxBytes: options.maxBytes,
+          maxRedirects: options.maxRedirects,
+          userAgent: options.userAgent ?? DEFAULT_USER_AGENT,
+          // A redirect may only land on another approved hostname (for example the "www." form, if it was approved).
+          isAllowedHost: (h) => approvedSet.has(h.toLowerCase()),
+        },
+        { resolve, request: capped },
+      );
+      lastRequestAt.set(host, now());
+      record(outcome, outcome.kind === 'ok' ? `HTTP ${outcome.httpStatus}; final ${outcome.finalUrl}` : outcome.reason);
+      return outcome;
+    },
   };
 }

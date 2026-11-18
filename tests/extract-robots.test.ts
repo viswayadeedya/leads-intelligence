@@ -54,7 +54,23 @@ describe('extractPage', () => {
   it('survives malformed and enormous input without throwing', () => {
     expect(() => extractPage('<<<>>><a href="::::">x</a><form><input', 'https://acme.example.invalid/')).not.toThrow();
     const big = extractPage(`<p>${'word '.repeat(400_000)}</p>`, 'https://acme.example.invalid/');
-    expect(big.text.length).toBeLessThanOrEqual(20_000);
+    expect(big.text.length).toBeLessThanOrEqual(60_000);
+    // and it says so, so the page cannot be used to conclude that something is absent
+    expect(big.readLimits).toEqual(expect.arrayContaining(['html_truncated', 'text_truncated']));
+  });
+
+  it('notes what it could not read: embedded widgets, script-drawn pages and link overflow', () => {
+    const url = 'https://acme.example.invalid/';
+    const plain = extractPage('<html><body><h1>Acme</h1><p>Call us.</p><iframe src="https://www.youtube.com/embed/x"></iframe><iframe src="https://www.google.com/maps/embed?pb=1"></iframe><iframe src="/local-frame"></iframe></body></html>', url);
+    expect(plain.readLimits).toEqual([]);
+    const framed = extractPage('<html><body><h1>Contact</h1><iframe src="https://form.jotform.com/123"></iframe><iframe data-src="https://book.housecallpro.com/book/acme"></iframe></body></html>', url);
+    expect(framed.readLimits).toEqual(['embedded:book.housecallpro.com', 'embedded:form.jotform.com']);
+    const widget = extractPage('<html><head><script src="https://static.servicetitan.com/scheduler.js"></script></head><body><h1>Book</h1><script src="https://cdn.example.net/unrelated.js"></script></body></html>', url);
+    expect(widget.readLimits).toEqual(['embedded:static.servicetitan.com']);
+    const shell = extractPage(`<html><head>${'<script src="/a.js"></script>'.repeat(6)}</head><body><div id="root"></div></body></html>`, url);
+    expect(shell.readLimits).toEqual(['thin_content']);
+    const many = extractPage(`<html><body><p>${'text '.repeat(200)}</p>${Array.from({ length: 700 }, (_, i) => `<a href="/p${i}">Page ${i}</a>`).join('')}</body></html>`, url);
+    expect(many.readLimits).toEqual(['links_truncated']);
   });
 
   it('recognizes booking links by label and by known scheduling host, but not "Facebook"', () => {

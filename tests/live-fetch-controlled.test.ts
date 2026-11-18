@@ -563,17 +563,19 @@ const SERVICES = html(`${NAV}<h1>Services</h1><p>Furnace repair. Phone: (616) 55
 const CONTACT = html(`${NAV}<h1>Contact</h1><p>Phone: (616) 555-0199</p>`, 'Lab Heating Co | Contact');
 
 /** The real fetcher over the lab network. Plain HTTP only because the lab sites are plain HTTP. */
-function controlledTransport(): PageTransport {
+function controlledTransport(approvedHosts: string[]): PageTransport {
   return {
     id: 'live-http-controlled-test',
     synthetic: false,
     costCentsPerRequest: 0,
+    approvedHosts,
+    canHandle: (host) => approvedHosts.includes(host),
     fetchPage: (url) => safeFetch(url.replace(/^https:/, 'http:'), OPTS, lab.deps),
   };
 }
 
-function labCtx(over: Parameters<typeof makeCtx>[0] = {}): Ctx {
-  return makeCtx({ transport: controlledTransport(), ...over, config: { liveFetchUnlocked: true, ...(over.config ?? {}) } });
+function labCtx(approvedHosts: string[], over: Parameters<typeof makeCtx>[0] = {}): Ctx {
+  return makeCtx({ transport: controlledTransport(approvedHosts), ...over, config: { liveFetchUnlocked: true, ...(over.config ?? {}) } });
 }
 
 type Routes = Record<string, (res: import('node:http').ServerResponse) => void>;
@@ -595,7 +597,7 @@ const robotsAllow = (res: import('node:http').ServerResponse) => {
 describe('controlled site: the investigation pipeline over real sockets', () => {
   it('a healthy site produces scoped, non-synthetic observations awaiting human review', async () => {
     const { host, site } = await businessSite('healthy', { '/robots.txt': robotsAllow, '/': page(HOME), '/services': page(SERVICES), '/contact': page(CONTACT) });
-    const ctx = labCtx();
+    const ctx = labCtx([host]);
     const business = createBusiness(ctx, { ...BUSINESS, domain: host });
     const run = await startInvestigation(ctx, { businessId: business.id });
     const db = ctx.store.snapshot();
@@ -624,7 +626,7 @@ describe('controlled site: the investigation pipeline over real sockets', () => 
         // otherwise: never answers
       },
     });
-    const ctx = labCtx();
+    const ctx = labCtx([host]);
     const business = createBusiness(ctx, { ...BUSINESS, domain: host });
     const run = await startInvestigation(ctx, { businessId: business.id });
     let db = ctx.store.snapshot();
@@ -650,7 +652,7 @@ describe('controlled site: the investigation pipeline over real sockets', () => 
     const other = name('directory');
     const otherSite = await lab.site(other, (_req, res) => sendHtml(res, html('<h1>Lab Heating Co</h1> Testville, MI. Book online! <a href="/book">Book</a>')));
     const { host } = await businessSite('parked', { '/robots.txt': robotsAllow, '/': (res) => redirect(res, `http://${other}/listing/lab-heating`) });
-    const ctx = labCtx();
+    const ctx = labCtx([host]);
     const business = createBusiness(ctx, { ...BUSINESS, domain: host });
     const run = await startInvestigation(ctx, { businessId: business.id });
     const db = ctx.store.snapshot();
@@ -669,7 +671,7 @@ describe('controlled site: the investigation pipeline over real sockets', () => 
       '/services': page(SERVICES),
       '/contact': (res) => redirect(res, 'http://169.254.169.254/latest/meta-data/'),
     });
-    const ctx = labCtx();
+    const ctx = labCtx([host]);
     const business = createBusiness(ctx, { ...BUSINESS, domain: host });
     const run = await startInvestigation(ctx, { businessId: business.id });
     const db = ctx.store.snapshot();
@@ -692,14 +694,14 @@ describe('controlled site: the investigation pipeline over real sockets', () => 
       '/services': page(SERVICES),
       '/contact': page(CONTACT),
     });
-    const ctxA = labCtx();
+    const ctxA = labCtx([a.host]);
     const runA = await startInvestigation(ctxA, { businessId: createBusiness(ctxA, { ...BUSINESS, domain: a.host }).id });
     expect(a.site.hits.map((h) => h.path)).toEqual(['/robots.txt', '/', '/services']);
     expect(runA.status).toBe('partial');
     expect(activeEv(ctxA.store.snapshot(), runA.id).filter((e) => e.polarity === 'absence')).toEqual([]);
 
     const b = await businessSite('robots-500', { '/robots.txt': (res) => sendHtml(res, 'oops', 500), '/': page(HOME), '/contact': page(CONTACT) });
-    const ctxB = labCtx();
+    const ctxB = labCtx([b.host]);
     const runB = await startInvestigation(ctxB, { businessId: createBusiness(ctxB, { ...BUSINESS, domain: b.host }).id });
     expect(b.site.hits.map((h) => h.path)).toEqual(['/robots.txt']);
     expect(activeEv(ctxB.store.snapshot(), runB.id)).toEqual([]);
@@ -717,7 +719,7 @@ describe('controlled site: the investigation pipeline over real sockets', () => 
     ];
     for (const [label, home] of variants) {
       const { host } = await businessSite(label, { '/robots.txt': robotsAllow, '/': home });
-      const ctx = labCtx();
+      const ctx = labCtx([host]);
       const run = await startInvestigation(ctx, { businessId: createBusiness(ctx, { ...BUSINESS, domain: host }).id });
       const db = ctx.store.snapshot();
       expect(run.status, label).toBe('partial');
@@ -733,7 +735,7 @@ describe('controlled site: the investigation pipeline over real sockets', () => 
     const routes: Routes = { '/robots.txt': robotsAllow, '/': page(html(`${links}<h1>Lab Heating Co</h1><address>Testville, MI 49999</address><p>Phone: (616) 555-0199</p>`, 'Lab Heating Co')) };
     for (let i = 0; i < 40; i++) routes[`/contact-${i}`] = page(CONTACT);
     const { host, site } = await businessSite('many-links', routes);
-    const ctx = labCtx({ config: { liveFetchUnlocked: true, maxPagesPerSite: 3, maxRequests: 4 } });
+    const ctx = labCtx([host], { config: { liveFetchUnlocked: true, maxPagesPerSite: 3, maxRequests: 4 } });
     const run = await startInvestigation(ctx, { businessId: createBusiness(ctx, { ...BUSINESS, domain: host }).id });
     expect(site.hits.length).toBeLessThanOrEqual(4);
     expect(run.requestsUsed).toBeLessThanOrEqual(4);
@@ -748,7 +750,7 @@ describe('controlled site: the investigation pipeline over real sockets', () => 
       'Lab Heating Co',
     );
     const { host, site } = await businessSite('hostile', { '/robots.txt': robotsAllow, '/': page(hostile), '/services': page(SERVICES), '/contact': page(CONTACT) });
-    const ctx = labCtx();
+    const ctx = labCtx([host]);
     const run = await startInvestigation(ctx, { businessId: createBusiness(ctx, { ...BUSINESS, domain: host }).id });
     const db = ctx.store.snapshot();
     // Only the site's own pages were requested: no subresources, no off-site links.
@@ -772,11 +774,29 @@ describe('general live research stays disabled', () => {
 
   it('an investigation refuses a non-synthetic transport under the real configuration, before any request', async () => {
     const { host, site } = await businessSite('locked', { '/robots.txt': robotsAllow, '/': page(HOME) });
-    const ctx = makeCtx({ transport: controlledTransport() });
+    const ctx = makeCtx({ transport: controlledTransport([host]) });
     const business = createBusiness(ctx, { ...BUSINESS, domain: host });
     await expect(startInvestigation(ctx, { businessId: business.id })).rejects.toMatchObject({ code: 'forbidden' });
     expect(site.hits).toEqual([]);
     expect(ctx.store.snapshot().runs).toEqual([]);
+  });
+
+  it('even when unlocked, a live transport with no approved-host list is refused, and an unlisted website is never requested', async () => {
+    const { host, site } = await businessSite('unlisted', { '/robots.txt': robotsAllow, '/': page(HOME) });
+    // 1. no list at all
+    const bare: PageTransport = { id: 'bare', synthetic: false, costCentsPerRequest: 0, fetchPage: (url) => safeFetch(url.replace(/^https:/, 'http:'), OPTS, lab.deps) };
+    const ctxBare = makeCtx({ transport: bare, config: { liveFetchUnlocked: true } });
+    await expect(startInvestigation(ctxBare, { businessId: createBusiness(ctxBare, { ...BUSINESS, domain: host }).id })).rejects.toMatchObject({ code: 'forbidden' });
+    // 2. a list that does not contain this website (not even a near miss)
+    for (const list of [['some-other-site.example.com'], [`www.${host}`], [`x${host}`], [host.replace(/^[^.]+\./, '')]]) {
+      const ctx = labCtx(list);
+      const run = await startInvestigation(ctx, { businessId: createBusiness(ctx, { ...BUSINESS, domain: host }).id });
+      expect(run.stages.find((s) => s.key === 'website')).toMatchObject({ status: 'not_checked' });
+      expect(run.stages.find((s) => s.key === 'website')!.note).toContain('not on the list of hostnames approved');
+      expect(run.requestsUsed).toBe(0);
+      expect(activeEv(ctx.store.snapshot(), run.id)).toEqual([]);
+    }
+    expect(site.hits).toEqual([]);
   });
 
   it('application code never constructs the live transport or sets the unlock switch', () => {
@@ -795,8 +815,9 @@ describe('general live research stays disabled', () => {
       const rel = path.relative(process.cwd(), file).replace(/\\/g, '/');
       const text = fs.readFileSync(file, 'utf8');
       const definesFetcher = rel === 'src/lib/security/safe-fetch.ts';
-      if (!definesFetcher && /createLiveTransport|createPinnedRequest|nodePinnedRequest|safeFetch\s*\(|from ['"][^'"]*safe-fetch['"]/.test(text)) offenders.push(`${rel}: uses the live fetcher`);
+      if (!definesFetcher && /createLiveTransport|createApprovedLiveTransport|createPinnedRequest|nodePinnedRequest|safeFetch\s*\(|from ['"][^'"]*safe-fetch['"]/.test(text)) offenders.push(`${rel}: uses the live fetcher`);
       if (rel !== 'src/lib/config.ts' && /liveFetchUnlocked\s*[:=]\s*true/.test(text)) offenders.push(`${rel}: sets liveFetchUnlocked`);
+      if (/mode\s*[:=]\s*['"]live_test['"]/.test(text)) offenders.push(`${rel}: sets live_test mode`);
       if (/\bdial\s*:/.test(text) && !definesFetcher) offenders.push(`${rel}: uses the test dial seam`);
     }
     expect(offenders).toEqual([]);

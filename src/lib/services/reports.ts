@@ -359,6 +359,10 @@ export function ownerUnknown(u: Unknown, runRecords: Map<string, SourceRecord>):
   if (notRetrieved > 0) parts.push(`${notRetrieved} page(s) could not be retrieved`);
   if (u.unreachedPlannedCount > 0) parts.push(`${u.unreachedPlannedCount} planned page(s) were not reached`);
   if (u.budgetExhausted) parts.push('the inspection stopped at its preset limit before every planned page was read');
+  if (u.partiallyReadCount !== undefined) {
+    if (!isCount(u.partiallyReadCount)) return null;
+    if (u.partiallyReadCount > 0) parts.push(`${u.partiallyReadCount} page(s) could only be read in part`);
+  }
   if (parts.length === 0) return null;
   if (u.kind === 'website_not_inspected') {
     if (u.inspectedCount !== 0) return null;

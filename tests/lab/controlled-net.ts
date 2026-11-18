@@ -20,7 +20,7 @@ import https from 'node:https';
 import net, { type AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { createPinnedRequest, type PinnedRequest, type ResolvedAddress, type Resolver, type SafeFetchDeps } from '@/lib/security/safe-fetch';
+import { createPinnedRequest, type PinnedRequest, type PinnedRequestOptions, type ResolvedAddress, type Resolver, type SafeFetchDeps } from '@/lib/security/safe-fetch';
 
 export type Hit = { method: string; path: string; host: string; userAgent: string };
 export type Site = { host: string; ip: string; port: number; hits: Hit[] };
@@ -188,6 +188,18 @@ export class Lab {
       },
     });
   }
+
+  /** Builds a socket layer with the caller's options (for example an approved-host list) plus the lab's translation. */
+  readonly requestFactory = (options: PinnedRequestOptions): PinnedRequest =>
+    createPinnedRequest({
+      ...options,
+      ca: this.ca,
+      dial: (to) => {
+        this.dialed.push(`${to.address}:${to.port}`);
+        const local = this.nat.get(`${to.address}:${to.port}`);
+        return { address: '127.0.0.1', port: local ?? this.canary.port, family: 4 };
+      },
+    });
 
   get deps(): SafeFetchDeps {
     return { resolve: this.resolver, request: this.request };

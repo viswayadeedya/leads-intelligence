@@ -90,6 +90,15 @@ export function aggregateWebsiteEvidence(input: {
   const planned = input.plannedPaths ?? [];
   const missingPlanned = planned.filter((p) => !website.some((r) => pathOf(r) === p));
   const complete = failed.length === 0 && missingPlanned.length === 0 && !input.budgetExhausted;
+  // Pages that were fetched but could not be read in full. An embedded widget only
+  // hides forms and schedulers; the other limits hide anything.
+  const limitsOf = (r: SourceRecord) => r.extracted!.readLimits ?? [];
+  const partlyReadAny = ok.filter((r) => limitsOf(r).some((l) => !l.startsWith('embedded:')));
+  const partlyReadEmbeds = ok.filter((r) => limitsOf(r).length > 0);
+  const describeLimits = (pages: SourceRecord[]) =>
+    pages
+      .map((r) => `${r.extracted!.path}: ${limitsOf(r).map((l) => (l.startsWith('embedded:') ? `embeds content from ${l.slice(9)}` : l === 'thin_content' ? 'almost no text in the HTML (probably drawn by scripts)' : 'too long to read in full')).filter((v, i, a) => a.indexOf(v) === i).join(', ')}`)
+      .join('; ');
 
   const staleRecord = ok.find((r) => r.extracted!.copyrightYear !== null && r.extracted!.copyrightYear <= input.nowYear - 2);
   const siteCaveats: Caveat[] = staleRecord ? ['html_only', 'site_may_be_outdated'] : ['html_only'];
@@ -202,7 +211,8 @@ export function aggregateWebsiteEvidence(input: {
   ];
   for (const check of absenceChecks) {
     if (check.present) continue;
-    if (complete) {
+    const partlyRead = check.type === 'after_hours_statement' ? partlyReadAny : partlyReadEmbeds;
+    if (complete && partlyRead.length === 0) {
       evidence.push(
         candidate(check.type, 'absence', `No ${check.thing} was found in the HTML of the ${m} pages inspected (${pathsLabel(inspectedPaths)}).`, null, ok, {
           confidence: 'medium',
@@ -215,6 +225,7 @@ export function aggregateWebsiteEvidence(input: {
       if (failed.length > 0) why.push(`${failed.length} page(s) could not be inspected (${failed.map((r) => `${pathOf(r)}: ${r.accessDetail}`).join('; ')})`);
       if (missingPlanned.length > 0) why.push(`${missingPlanned.length} planned page(s) were not reached (${pathsLabel(missingPlanned)})`);
       if (input.budgetExhausted) why.push('the request budget for this run was reached');
+      if (partlyRead.length > 0) why.push(`${partlyRead.length} page(s) could only be read in part (${describeLimits(partlyRead)})`);
       unknowns.push({
         question: check.question,
         reason: `Not found on the ${m} page(s) that were inspected, but ${why.join(' and ')}. "Not found on inspected pages" does not mean it does not exist.`,
@@ -224,6 +235,7 @@ export function aggregateWebsiteEvidence(input: {
         inspectedCount: m,
         unreachedPlannedCount: missingPlanned.length,
         budgetExhausted: input.budgetExhausted,
+        partiallyReadCount: partlyRead.length,
       });
     }
   }

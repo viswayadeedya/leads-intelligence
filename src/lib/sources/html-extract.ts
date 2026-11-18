@@ -16,6 +16,14 @@ export type PageFacts = {
   links: ExtractedLink[];
   forms: ExtractedForm[];
   phones: string[];
+  /**
+   * Reasons this page could NOT be read in full. A page with any entry here
+   * must not be used to conclude that something is absent.
+   *   html_truncated / text_truncated / links_truncated   a size limit was hit
+   *   thin_content        almost no text in the HTML: the page is probably drawn by scripts
+   *   embedded:<host>     an iframe or known third-party widget whose content is not in this HTML
+   */
+  readLimits: string[];
 };
 
 type Node = {
@@ -28,9 +36,14 @@ type Node = {
 
 const SKIP = new Set(['script', 'style', 'noscript', 'template', 'svg', 'iframe', 'object', 'embed', 'head']);
 const BLOCK = new Set(['p', 'div', 'li', 'br', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section', 'footer', 'header', 'tr', 'td', 'address', 'nav']);
-const MAX_TEXT = 20_000;
-const MAX_LINKS = 200;
+const MAX_TEXT = 60_000;
+const MAX_LINKS = 600;
 const MAX_HTML = 1_000_000;
+
+/** Iframes that are media or maps, not a place where a form or scheduler would be. */
+const BENIGN_EMBED = /(?:^|\.)(?:youtube\.com|youtube-nocookie\.com|youtu\.be|vimeo\.com|google\.com|gstatic\.com|googletagmanager\.com|doubleclick\.net|facebook\.com|fbcdn\.net|twitter\.com|x\.com|instagram\.com|bing\.com|openstreetmap\.org)$/i;
+/** Script hosts of scheduling, form and chat products that draw their own interface after load. */
+const WIDGET_SCRIPT = /(?:^|\.)(?:housecallpro\.com|servicetitan\.com|scheduleengine\.net|getjobber\.com|clienthub\.getjobber\.com|workiz\.com|calendly\.com|acuityscheduling\.com|squareup\.com|setmore\.com|schedulenow\.com|jotform\.com|typeform\.com|hsforms\.net|hsforms\.com|hubspot\.com|formstack\.com|wufoo\.com|cognitoforms\.com|123formbuilder\.com|formassembly\.com|leadconnectorhq\.com|msgsndr\.com|podium\.com|birdeye\.com|elfsight\.com|tawk\.to|intercom\.io|drift\.com|liveperson\.net|olark\.com|tidio\.co|crisp\.chat|zendesk\.com|zdassets\.com|smith\.ai|ruby\.com|callrail\.com)$/i;
 
 export const PHONE_RE = /(?:\+?1[\s.-]?)?\(?\b\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/g;
 
@@ -80,6 +93,8 @@ function find(node: Node, name: string): Node | null {
 }
 
 export function extractPage(html: string, pageUrl: string): PageFacts {
+  const readLimits: string[] = [];
+  if (html.length > MAX_HTML) readLimits.push('html_truncated');
   const doc = parse(html.slice(0, MAX_HTML)) as unknown as Node;
   const base = new URL(pageUrl);
 
@@ -90,15 +105,41 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
 
   const body = find(doc, 'body') ?? doc;
   const parts: string[] = [];
-  textOf(body, parts, { left: MAX_TEXT });
+  const textBudget = { left: MAX_TEXT };
+  textOf(body, parts, textBudget);
+  if (textBudget.left <= 0) readLimits.push('text_truncated');
   const text = collapse(parts).slice(0, MAX_TEXT);
+  let scriptCount = 0;
+  let linksTruncated = false;
+  const embedded = new Set<string>();
+  const thirdPartyHost = (raw: string | null): string | null => {
+    if (!raw) return null;
+    try {
+      const u = new URL(raw, base);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+      const host = u.hostname.toLowerCase();
+      return host.replace(/^www\./, '') === base.hostname.toLowerCase().replace(/^www\./, '') ? null : host;
+    } catch {
+      return null;
+    }
+  };
 
   const links: ExtractedLink[] = [];
   const forms: ExtractedForm[] = [];
 
   const walk = (node: Node, hidden: boolean): void => {
+    // Content this parser does not read is noted, so its absence is never mistaken for "not there".
+    if (node.nodeName === 'iframe') {
+      const host = thirdPartyHost(attr(node, 'src') ?? attr(node, 'data-src'));
+      if (host && !BENIGN_EMBED.test(host)) embedded.add(host);
+    } else if (node.nodeName === 'script') {
+      scriptCount++;
+      const host = thirdPartyHost(attr(node, 'src'));
+      if (host && WIDGET_SCRIPT.test(host)) embedded.add(host);
+    }
     if (SKIP.has(node.nodeName)) return;
     const nowHidden = hidden || (!node.nodeName.startsWith('#') && isHidden(node));
+    if (!nowHidden && (node.nodeName === 'a' || node.nodeName === 'button') && links.length >= MAX_LINKS) linksTruncated = true;
     if (!nowHidden && (node.nodeName === 'a' || node.nodeName === 'button') && links.length < MAX_LINKS) {
       const rawHref = attr(node, 'href') ?? attr(node, 'formaction') ?? '';
       const labelParts: string[] = [];
@@ -144,6 +185,20 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
     for (const child of node.childNodes ?? []) walk(child, nowHidden);
   };
   walk(body, false);
+  // Scripts in <head> count too when judging whether the page is drawn by scripts.
+  const head = find(doc, 'head');
+  const countScripts = (node: Node): void => {
+    if (node.nodeName === 'script') {
+      scriptCount++;
+      const host = thirdPartyHost(attr(node, 'src'));
+      if (host && WIDGET_SCRIPT.test(host)) embedded.add(host);
+    }
+    for (const child of node.childNodes ?? []) countScripts(child);
+  };
+  if (head) countScripts(head);
+  if (linksTruncated) readLimits.push('links_truncated');
+  if (text.length < 400 && (scriptCount >= 5 || html.length > 30_000)) readLimits.push('thin_content');
+  for (const host of [...embedded].sort().slice(0, 8)) readLimits.push(`embedded:${host.slice(0, 80)}`);
 
   const phones = new Set<string>();
   for (const m of text.matchAll(PHONE_RE)) phones.add(m[0].trim());
@@ -151,7 +206,7 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
     if (link.href.startsWith('tel:')) phones.add(decodeURIComponent(link.href.slice(4)).trim());
   }
 
-  return { title, text, links, forms, phones: [...phones].slice(0, 10) };
+  return { title, text, links, forms, phones: [...phones].slice(0, 10), readLimits };
 }
 
 // ---- Signal detection over extracted facts -------------------------------

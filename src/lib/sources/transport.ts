@@ -25,5 +25,11 @@ export interface PageTransport {
   readonly costCentsPerRequest: number;
   /** Optional: lets a transport say up front that it has nothing for this host (mock fixtures). */
   canHandle?(host: string): boolean;
+  /**
+   * Required on every transport that makes real requests: the exact hostnames
+   * the operator approved. An investigation refuses a non-synthetic transport
+   * without it, and never asks it for a host that is not listed.
+   */
+  readonly approvedHosts?: readonly string[];
   fetchPage(url: string, attempt: number): Promise<FetchOutcome>;
 }

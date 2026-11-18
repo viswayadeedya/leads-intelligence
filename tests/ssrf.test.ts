@@ -6,7 +6,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { classifyAddress, expandIPv6, validateFetchUrl } from '@/lib/security/net-guard';
-import { nodePinnedRequest, safeFetch, type PinnedRequest, type RawResponse, type Resolver } from '@/lib/security/safe-fetch';
+import { createPinnedRequest, egressRefusal, nodePinnedRequest, safeFetch, type PinnedRequest, type RawResponse, type Resolver } from '@/lib/security/safe-fetch';
 
 const OPTS = { timeoutMs: 1000, maxBytes: 2000, maxRedirects: 2, userAgent: 'test-agent' };
 const html = (body: string, status = 200, headers: Record<string, string> = { 'content-type': 'text/html; charset=utf-8' }): RawResponse => ({
@@ -226,9 +226,17 @@ describe('nodePinnedRequest (real sockets against a loopback test server)', () =
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
+  // The request is made for a public-looking address; the test seam delivers it to the loopback server.
+  const dialled: string[] = [];
+  const pinned = createPinnedRequest({
+    dial: (to) => {
+      dialled.push(`${to.address}:${to.port}`);
+      return { address: '127.0.0.1', port, family: 4 };
+    },
+  });
   const target = (path: string) => ({
-    url: new URL(`http://pinned-host.example.invalid:${port}${path}`),
-    address: '127.0.0.1',
+    url: new URL(`http://pinned-host.example.invalid${path}`),
+    address: '93.184.216.34',
     family: 4 as const,
     timeoutMs: 400,
     maxBytes: 5000,
@@ -236,19 +244,50 @@ describe('nodePinnedRequest (real sockets against a loopback test server)', () =
   });
 
   it('connects to the pinned address even though the hostname does not resolve', async () => {
-    const res = await nodePinnedRequest(target('/'));
+    const res = await pinned(target('/'));
     expect(res.status).toBe(200);
-    expect(res.body.toString()).toBe(`host=pinned-host.example.invalid:${port}`);
+    expect(res.body.toString()).toBe('host=pinned-host.example.invalid');
+    expect(dialled.at(-1)).toBe('93.184.216.34:80');
   });
 
   it('aborts when the body exceeds the byte cap', async () => {
-    const res = await nodePinnedRequest(target('/big'));
+    const res = await pinned(target('/big'));
     expect(res.truncated).toBe(true);
     expect(res.body.length).toBe(0);
   });
 
   it('times out instead of hanging', async () => {
-    await expect(nodePinnedRequest(target('/slow'))).rejects.toThrow('timeout');
+    await expect(pinned(target('/slow'))).rejects.toThrow('timeout');
+  });
+
+  it('the socket layer itself refuses non-public addresses, odd ports and unapproved hosts, whatever the caller validated', async () => {
+    const before = dialled.length;
+    const base = { family: 4 as const, timeoutMs: 400, maxBytes: 5000, userAgent: 'test-agent' };
+    // straight to the loopback server, bypassing safeFetch entirely
+    await expect(nodePinnedRequest({ ...base, url: new URL(`http://pinned-host.example.invalid:${port}/`), address: '127.0.0.1' })).rejects.toThrow('egress_refused');
+    await expect(nodePinnedRequest({ ...base, url: new URL('http://pinned-host.example.invalid/'), address: '127.0.0.1' })).rejects.toThrow('egress_refused');
+    for (const address of ['10.0.0.7', '192.168.1.1', '169.254.169.254', '172.16.0.1', '100.64.0.1', '0.0.0.0', '::1', 'fe80::1', 'fd00::1', '::ffff:10.0.0.7', 'not-an-address']) {
+      await expect(pinned({ ...base, url: new URL('http://pinned-host.example.invalid/'), address }), address).rejects.toThrow('egress_refused');
+    }
+    // a public address on a port other than 80/443
+    await expect(pinned({ ...base, url: new URL('http://pinned-host.example.invalid:8080/'), address: '93.184.216.34' })).rejects.toThrow('egress_refused');
+    // with an approved-host list, a host that is not on it
+    const listed = createPinnedRequest({ approvedHosts: new Set(['approved.example.com']), dial: (to) => (dialled.push(`${to.address}:${to.port}`), { address: '127.0.0.1', port, family: 4 }) });
+    for (const host of ['pinned-host.example.invalid', 'www.approved.example.com', 'approved.example.com.evil.example.net', 'xapproved.example.com']) {
+      await expect(listed({ ...base, url: new URL(`http://${host}/`), address: '93.184.216.34' }), host).rejects.toThrow('egress_refused');
+    }
+    expect((await listed({ ...base, url: new URL('http://approved.example.com/'), address: '93.184.216.34' })).status).toBe(200);
+    // nothing above reached the dial step except the one approved request
+    expect(dialled.slice(before)).toEqual(['93.184.216.34:80']);
+  });
+
+  it('egressRefusal names what was wrong', () => {
+    const ok = { hostname: 'a.example.com', address: '93.184.216.34', port: 443 };
+    expect(egressRefusal(ok)).toBeNull();
+    expect(egressRefusal({ ...ok, port: 22 })).toBe('port');
+    expect(egressRefusal({ ...ok, address: '127.0.0.1' })).toBe('address');
+    expect(egressRefusal(ok, new Set(['b.example.com']))).toBe('host');
+    expect(egressRefusal({ ...ok, hostname: 'A.Example.com.' }, new Set(['a.example.com']))).toBeNull();
   });
 
   it('safeFetch refuses the same loopback server when addressed directly', async () => {

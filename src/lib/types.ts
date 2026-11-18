@@ -1,7 +1,8 @@
 // Domain types. Field names follow docs/architecture/DATA_MODEL.md (camelCased).
 // Every tenant row carries ownerId; all access goes through owner-scoped services.
 
-export type Mode = 'mock' | 'live';
+/** 'live_test': the operator live test (tools/live-test) against approved hostnames. The web app only ever runs 'mock'. */
+export type Mode = 'mock' | 'live' | 'live_test';
 
 export type ActorKind = 'human' | 'system' | 'model';
 export type Actor = { userId: string; kind: ActorKind };
@@ -87,6 +88,8 @@ export type Unknown = {
   inspectedCount?: number;
   unreachedPlannedCount?: number;
   budgetExhausted?: boolean;
+  /** pages that were fetched but could only be read in part (size limit, script-drawn page, embedded widget) */
+  partiallyReadCount?: number;
 };
 
 export type InvestigationRun = {
@@ -152,6 +155,8 @@ export type PageExtract = {
   hours: string | null;
   copyrightYear: number | null;
   instructionLike: string | null;
+  /** Why the page could not be read in full (see PageFacts.readLimits). Missing on older rows. */
+  readLimits?: string[];
 };
 
 export type EvidenceType =

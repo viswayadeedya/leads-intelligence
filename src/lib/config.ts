@@ -3,12 +3,14 @@
 
 export type AppConfig = {
   /** This build only runs in mock mode. Live mode is gated (see docs/security). */
-  mode: 'mock';
+  /** `loadConfig` always returns 'mock'. 'live_test' is set in memory by tools/live-test only. */
+  mode: 'mock' | 'live_test';
   liveRequested: boolean;
   /**
    * Second lock on live website fetching. `loadConfig` ALWAYS returns false:
-   * there is deliberately no environment variable for it. Only tests that run
-   * against controlled servers on this machine set it, in memory.
+   * there is deliberately no environment variable for it. It is set in memory
+   * only by tests that run against controlled servers on this machine, and by
+   * the operator live test (tools/live-test) after its own checks.
    */
   liveFetchUnlocked: boolean;
   maxCostCents: number;
