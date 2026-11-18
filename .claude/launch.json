@@ -1,0 +1,31 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "opportunity-intelligence",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/run-next.mjs",
+        "dev",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "3210"
+      ],
+      "port": 3210
+    },
+    {
+      "name": "opportunity-intelligence-prod",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/run-next.mjs",
+        "start",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "3211"
+      ],
+      "port": 3211
+    }
+  ]
+}

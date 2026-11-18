@@ -1,0 +1,160 @@
+# ---------------------------------------------------------------------------
+# Opportunity Intelligence Engine: what must never be committed.
+# Rule of thumb: source, fixtures (fictional only) and docs are tracked;
+# anything holding secrets, sessions, real research data or build output is not.
+# ---------------------------------------------------------------------------
+
+# --- Dependencies ---
+node_modules/
+.pnp.*
+.yarn/
+
+# --- Build output and tool caches ---
+.next/
+out/
+build/
+dist/
+.turbo/
+.vercel/
+.cache/
+*.tsbuildinfo
+next-env.d.ts
+.eslintcache
+coverage/
+.nyc_output/
+
+# --- Environment files: everything except the sanitized example ---
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+*.env
+.envrc
+.dev.vars
+
+# --- Keys, certificates, credential files ---
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.der
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.gpg
+*.asc
+.npmrc
+.netrc
+.pypirc
+.htpasswd
+credentials.json
+credentials.*.json
+client_secret*.json
+*service-account*.json
+*serviceaccount*.json
+*-credentials.json
+token.json
+tokens.json
+secrets.json
+secrets.y*ml
+*.secret
+*.secrets
+.aws/
+.gcloud/
+.azure/
+.ssh/
+supabase/.env
+supabase/.temp/
+supabase/.branches/
+
+# --- Sessions, cookies, captured browser traffic ---
+cookies.txt
+cookies.json
+*.cookies
+*.cookiejar
+*.har
+storageState*.json
+storage-state*.json
+playwright/.auth/
+.auth/
+auth-state/
+/sessions/
+
+# --- Local databases and the mock-mode data store ---
+.data/
+data/local/
+db.json
+*.db.json
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.db
+*.db-wal
+*.db-shm
+*.dump
+*.sql.gz
+*.bak
+backups/
+
+# --- Private research data (real businesses, real notes, real exports) ---
+# Only synthetic fixtures (src/fixtures) and synthetic samples (docs/examples) are tracked.
+private/
+private-research/
+research-private/
+research-data/
+research-notes/
+real-runs/
+/exports/
+report-exports/
+/downloads/
+/leads/
+/prospects/
+*.private.md
+*.private.json
+*.leads.csv
+*.prospects.csv
+
+# --- Logs and crash/diagnostic dumps ---
+/logs/
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.pid
+*.heapsnapshot
+*.heapprofile
+*.cpuprofile
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# --- Test and browser-automation output ---
+test-results/
+playwright-report/
+blob-report/
+*.trace.zip
+/videos/
+
+# --- Scanner output (may quote the secrets it found) ---
+gitleaks-report.*
+trufflehog-report.*
+.secrets.baseline
+
+# --- Local assistant/editor/OS state ---
+.claude/settings.local.json
+.claude/*.local.*
+.claude/worktrees/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

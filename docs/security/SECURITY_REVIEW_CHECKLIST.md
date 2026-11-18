@@ -1,0 +1,36 @@
+# Security Review and Evidence Log
+
+For every PR or milestone, reviewer must record PASS / FAIL / NOT APPLICABLE with commands, screenshots (redacted), test artifacts and commit hash.
+
+| Gate | Evidence required |
+|---|---|
+| Authn/authz and RLS | Negative cross-user test output |
+| SSRF/egress | Redirect/DNS/private-network tests |
+| Prompt injection | Malicious-source fixture cannot escalate privileges |
+| Secrets | Scanner output and client bundle inspection |
+| Privacy | Restricted content excluded from public report/export |
+| Outbound safety | No action without exact human approval |
+| Resource caps | Cost, tokens, retries, timeout enforced |
+| Supply chain | Lockfile, dependency scan, CI status |
+| Incident readiness | Rotation/disable instructions and on-call owner |
+
+Any untested applicable gate is a blocker, not an assumed pass. Document residual risk in `docs/delivery/DECISIONS.md`.
+
+---
+
+## Builder-submitted evidence — Milestone 1 (2026-11-18). NOT A REVIEW.
+Recorded by the builder (Claude) so the reviewer has something concrete to check. The reviewer must fill in the verdict column; the builder's column is a claim, not a certification. Commit hash: none (no git repository yet).
+
+| Gate | Builder's evidence | Builder's claim | Reviewer verdict |
+|---|---|---|---|
+| Authn/authz and RLS | `tests/authz.test.ts`, `tests/api-routes.test.ts`; live curl probes in `docs/delivery/BUILD_LOG.md` | Application-layer owner scoping: pass. **RLS: NOT TESTED** (SQL file unapplied) | |
+| SSRF/egress | `tests/ssrf.test.ts` (URL, address, redirect, rebinding, size, loopback sockets) | Unit tests pass. **Egress restriction: NOT IMPLEMENTED.** Live fetch is disabled | |
+| Prompt injection | `tests/golden.test.ts` (test 10), `tests/verifier.test.ts` | Pass structurally. **No real model tested** | |
+| Secrets | `npm run secret-scan`, `npm run check:bundle` | Pass with stopgap scanner. **gitleaks NOT RUN** | |
+| Privacy | `tests/privacy-report.test.ts`; browser DOM and export checked | Pass | |
+| Outbound safety | `tests/outreach-limits.test.ts`; no send code exists | Pass | |
+| Resource caps | `tests/outreach-limits.test.ts` (request, cost, runs/hour, retries) | Pass. Token caps: NOT APPLICABLE (no model). IP rate limit: NOT IMPLEMENTED | |
+| Supply chain | `package-lock.json`, exact versions, `npm audit --omit=dev` = 0 | Dev tooling has 16 high advisories (unfixed). **CI: NONE** | |
+| Incident readiness | `docs/architecture/OPERATIONS_RUNBOOK.md` text only | **NOT TESTED.** No keys exist to rotate; no on-call owner named | |
+
+Applicable gates that are untested are blockers for live mode, per the rule above. They do not block continued mock-mode use.

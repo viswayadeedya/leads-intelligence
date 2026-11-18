@@ -1,0 +1,187 @@
+npm notice run opportunity-intelligence@0.1.0 npx
+npm notice run vitest run --reporter=verbose
+
+ RUN  v5.1.1 <repo>
+
+ ✓ tests/extract-robots.test.ts > extractPage > reads title, visible text and phones; ignores script, style, comments, noscript and hidden nodes 1ms
+ ✓ tests/extract-robots.test.ts > extractPage > keeps hostile markup as plain text only 0ms
+ ✓ tests/extract-robots.test.ts > extractPage > detects signals only from visible content 1ms
+ ✓ tests/extract-robots.test.ts > extractPage > plans only same-site contact/booking pages, never off-site links or files 1ms
+ ✓ tests/extract-robots.test.ts > extractPage > survives malformed and enormous input without throwing 58ms
+ ✓ tests/extract-robots.test.ts > extractPage > recognizes booking links by label and by known scheduling host, but not "Facebook" 1ms
+ ✓ tests/extract-robots.test.ts > robots.txt > honors disallow, allow precedence, wildcards and agent groups 1ms
+ ✓ tests/extract-robots.test.ts > identity normalization > normalizes names and domains 4ms
+ ✓ tests/extract-robots.test.ts > identity normalization > same name in a different city is not treated as a duplicate 1ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects file:///etc/passwd (scheme_not_allowed) 1ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects ftp://example.com/ (scheme_not_allowed) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects javascript:alert(1) (scheme_not_allowed) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects gopher://example.com/ (scheme_not_allowed) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://localhost/ (internal_hostname) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://LOCALHOST./ (internal_hostname) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://app.localhost/ (internal_hostname) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://printer.local/ (internal_hostname) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://db.internal/ (internal_hostname) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://intranet/ (single_label_hostname) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://127.0.0.1/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://127.1/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://2130706433/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://0x7f.0.0.1/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://0177.0.0.1/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://0.0.0.0/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://169.254.169.254/latest/meta-data/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://10.0.0.5/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://172.16.4.1/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://192.168.1.1/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://100.64.0.1/ (non_public_ipv4) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://[::1]/ (non_public_ipv6_form) 3ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://[::ffff:127.0.0.1]/ (non_public_ipv6_form) 1ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://[::ffff:7f00:1]/ (non_public_ipv6_form) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://[fd00::1]/ (non_public_ipv6) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://[fe80::1]/ (non_public_ipv6) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://[64:ff9b::7f00:1]/ (non_public_ipv6) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://8.8.8.8/ (ip_literal_not_allowed) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://user:pw@example.com/ (embedded_credentials) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects http://example.com:8080/ (port_not_allowed) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects https://example.com:22/ (port_not_allowed) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects not a url (invalid_url) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > rejects  (invalid_url) 0ms
+ ✓ tests/ssrf.test.ts > validateFetchUrl > accepts ordinary public http and https URLs 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 127.0.0.1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 10.1.2.3 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 172.31.255.255 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 192.168.0.10 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 169.254.169.254 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 0.0.0.0 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 100.100.100.100 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 224.0.0.1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 255.255.255.255 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses ::1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses :: 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses fc00::1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses fe80::abcd 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses ::ffff:10.0.0.1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses ::ffff:a00:1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 2001:db8::1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses 2002:7f00:1:: 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses ff02::1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > refuses not-an-ip 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > allows public 93.184.216.34 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > allows public 8.8.8.8 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > allows public 1.1.1.1 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > allows public 2606:4700:4700::1111 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > allows public 2a00:1450:4001:81b::200e 0ms
+ ✓ tests/ssrf.test.ts > classifyAddress > expands IPv6 forms 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > blocks a hostname whose DNS answer is private, without connecting 1ms
+ ✓ tests/ssrf.test.ts > safeFetch > blocks when ANY DNS answer is private (mixed answer set) 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > blocks redirect to the cloud metadata address 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > blocks redirect to localhost, to file:// and to a host that resolves privately 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > defeats DNS rebinding: connects to the validated address and never resolves a second time 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > caps redirects 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > reports off-domain redirects as restricted instead of following them 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > refuses oversized responses and non-HTML content 0ms
+ ✓ tests/ssrf.test.ts > safeFetch > maps 403/429/CAPTCHA to restricted and never retries them 0ms
+ ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > connects to the pinned address even though the hostname does not resolve 8ms
+ ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > aborts when the body exceeds the byte cap 2ms
+ ✓ tests/sample-report.test.ts > sample report (synthetic "private-group-note" case) > internal view cites evidence IDs; owner version is redacted 23ms
+ ✓ tests/authz.test.ts > sessions > anonymous or forged tokens resolve to no actor 2ms
+ ✓ tests/authz.test.ts > sessions > a valid session resolves to the human operator, expires, and is invalidated by sign-out 1ms
+ ✓ tests/authz.test.ts > sessions > stores only a hash of the session token 0ms
+ ✓ tests/authz.test.ts > sessions > one-click mock sign-in is disabled once a passphrase is configured; wrong passphrases are rate limited 1ms
+ ✓ tests/authz.test.ts > sessions > parses the session cookie from a raw header 0ms
+ ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > denies every service call with "not found" and leaves A data unchanged 29ms
+ ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > a business created by A is invisible to B 1ms
+ ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > client input cannot set owner or trust fields (mass assignment) 0ms
+ ✓ tests/authz.test.ts > cross-user access (IDOR): user B cannot read or modify user A objects > website input rejects internal hosts, IPs, credentials and non-http schemes 1ms
+ ✓ tests/authz.test.ts > non-human actors cannot take review, approval or outbound actions > model actor is refused 3ms
+ ✓ tests/authz.test.ts > non-human actors cannot take review, approval or outbound actions > system actor is refused 3ms
+ ✓ tests/authz.test.ts > CSRF origin check and CSP > treats only GET/HEAD/OPTIONS as safe 0ms
+ ✓ tests/authz.test.ts > CSRF origin check and CSP > requires a present, matching Origin for state-changing requests 0ms
+ ✓ tests/authz.test.ts > CSRF origin check and CSP > only /login is reachable without a session 0ms
+ ✓ tests/authz.test.ts > CSRF origin check and CSP > production CSP has no unsafe-inline or unsafe-eval and forbids framing 0ms
+ ✓ tests/verifier.test.ts > verifyProposal > accepts a narrow claim that cites valid evidence 20ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects unknown and other-run evidence IDs 8ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects evidence recorded as being about a different business 2ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects dollar, percentage and loss claims 4ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects numbers in the observed fact that are not in the cited evidence 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects confidence higher than the weakest cited evidence 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects an absence claim with no absence evidence, or without scope 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects an absence claim when any website source in the run failed 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects overgeneralization from a single anecdote and inflated confidence 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects stale evidence worded as current 2ms
+ ✓ tests/verifier.test.ts > verifyProposal > 9. a search observation without location is marked geo-uncertain and cannot support a local claim 3ms
+ ✓ tests/verifier.test.ts > verifyProposal > rejects instruction-like page text as support for any claim 3ms
+ ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects output that is not the expected shape 3ms
+ ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects proposals that carry extra fields such as actions or tool calls 2ms
+ ✓ tests/verifier.test.ts > verifyReasonerOutput > rejects proposals missing alternatives or an owner question 2ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > keeps the note internal and withholds any claim that depends on it 22ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > the approved export contains no restricted material and is the exact approved text 13ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > a gated source can never be classified public, whatever the operator selects 9ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > fails closed: evidence with a missing or unknown privacy class is excluded 6ms
+ ✓ tests/privacy-report.test.ts > owner view: private-group note accidentally attached > instruction-like page text and unreviewed evidence never appear in the owner view 6ms
+ ✓ tests/privacy-report.test.ts > approval is bound to exact content > cannot approve with pending reviews, a stale hash, or out of order; later changes withdraw approval 7ms
+ ✓ tests/privacy-report.test.ts > approval is bound to exact content > "no finding" is a valid, approvable outcome 4ms
+ ✓ tests/privacy-report.test.ts > hostile text is neutralized > escapes Markdown and HTML control characters 0ms
+ ✓ tests/privacy-report.test.ts > hostile text is neutralized > a malicious business name and observation cannot inject markup into the owner export 2ms
+ ✓ tests/privacy-report.test.ts > hostile text is neutralized > the internal view cannot be exported as an owner document 3ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > no draft before the report is approved, and only from an owner-safe accepted finding 19ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > a claim resting on restricted evidence cannot be used for outreach 11ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > full gate: unapproved fails, wrong/expired/replayed/edited approvals fail, exact approval succeeds once 7ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > an approval issued for one user or draft cannot be used on another 4ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > drafts about synthetic businesses can never be recorded as sent 5ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > copying is logged as copied, not sent 2ms
+ ✓ tests/outreach-limits.test.ts > outreach requires explicit human approval > edits that add loss, dollar, guarantee or urgency claims are refused 1ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > stops at the per-run request cap, keeps evidence, marks the run partial and makes no absence claims 3ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > never exceeds the cost cap when requests cost money 2ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > limits investigations per hour 6ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > bounds retries per investigation 2ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > idempotency key and open-run reuse prevent duplicate runs 2ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a failing transport marks the run failed, never clean 0ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a reasoner that throws or returns junk leaves evidence reviewable and reports the failure 4ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > a stopped investigation cannot be resumed or retried 2ms
+ ✓ tests/outreach-limits.test.ts > limits: cost, requests, runs and retries > manual evidence requires provenance and a privacy class, and refuses personal identifiers 3ms
+ ✓ tests/outreach-limits.test.ts > log redaction (negative test 3, logs) > removes secrets, cookies, tokens and source bodies 0ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > has at least 12 cases 1ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > baseline-phone-only 20ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > same-name-other-city 2ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > parent-subsidiary 2ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > outdated-site 3ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > phone-scheduling 3ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > site-403 1ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > robots-disallow 2ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > prompt-injection 6ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > contradictory-comments 4ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > invented-revenue 3ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > private-group-note 3ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > duplicate-two-domains 4ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > booking-page-403 2ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > contact-form-deeper 2ms
+ ✓ tests/golden.test.ts > golden set: expected outcome per case > flaky-timeout 2ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 1. a comment about a different business cannot support an opportunity 4ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 2. a 403 is "restricted" and never becomes a negative finding 1ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 2b. robots.txt disallow: pages are not requested at all 1ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 3. inaccessible request page: no "no booking" assertion, an explicit unknown instead 2ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 4. form missing on home page but present on contact page: finding reflects the deeper check 2ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 5+6. invented statistic, nonexistent evidence ID and an "action" are rejected and logged 2ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 7. one complaint is labelled anecdotal with low confidence, and no pattern is claimed 2ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 8. old evidence is flagged stale, dated, and not worded as current 8ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > 10. prompt injection in page HTML is inert source text 2ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > contradictory comments are both kept visible and both cited 2ms
+ ✓ tests/golden.test.ts > evidence integrity (acceptance tests 1-10) > rejecting evidence invalidates the claim that depended on it and writes the audit trail 2ms
+ ✓ tests/golden.test.ts > identity and duplicates > same-name business in another city stops the run before any evidence is collected 1ms
+ ✓ tests/golden.test.ts > identity and duplicates > parent-company wording is flagged as ambiguous 1ms
+ ✓ tests/golden.test.ts > identity and duplicates > operator can confirm identity (audited) and resume without refetching the home page 2ms
+ ✓ tests/golden.test.ts > identity and duplicates > duplicate company with two domains is flagged, not merged, and cannot be investigated until resolved 1ms
+ ✓ tests/golden.test.ts > identity and duplicates > loading the same synthetic example twice does not create duplicates 0ms
+ ✓ tests/golden.test.ts > retry is bounded and idempotent > a timed-out page blocks absence claims, then recovers on retry without duplicate records or evidence 4ms
+ ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/investigations/:id is 401 without, or with a forged, session 88ms
+ ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/investigations/:id returns status, cost and labelled synthetic data for the owner; 404 for unknown IDs 8ms
+ ✓ tests/api-routes.test.ts > API routes require a valid session > GET /api/reports/:id/export is 401 anonymous, 403 before approval, and never contains restricted notes 27ms
+ ✓ tests/api-routes.test.ts > API routes require a valid session > the data file never contains the raw session token or raw page HTML 1ms
+ ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > times out instead of hanging 408ms
+ ✓ tests/ssrf.test.ts > nodePinnedRequest (real sockets against a loopback test server) > safeFetch refuses the same loopback server when addressed directly 0ms
+
+ Test Files  9 passed (9)
+      Tests  176 passed (176)
+   Start at  11:33:37
+   Duration  598ms (tests 48%, import 45%, transform 6%, worker 2%)
+

@@ -1,0 +1,117 @@
+{
+  "note": "SYNTHETIC. Internal view of a fictional business. Evidence IDs are regenerated on every run.",
+  "executiveFinding": "We inspected 3 page(s) of birchwood-heating.example.invalid on 2026-11-18. 2 observation(s) may be worth a conversation with the owner: No online request path found on inspected pages; One comment describes an unreturned contact attempt. Each is a hypothesis to check with the owner, not a conclusion.",
+  "journey": [
+    {
+      "step": "Discovery (search, AI answers)",
+      "state": "Not checked",
+      "detail": "Search and AI-search visibility were not sampled."
+    },
+    {
+      "step": "Contact (phone, form)",
+      "state": "Verified",
+      "detail": "A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact). No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact)."
+    },
+    {
+      "step": "Booking (online request or scheduling)",
+      "state": "Checked; not found",
+      "detail": "No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact)."
+    },
+    {
+      "step": "After-hours availability",
+      "state": "Verified",
+      "detail": "Office hours are stated on /. No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact)."
+    },
+    {
+      "step": "Response and follow-up",
+      "state": "Verified",
+      "detail": "In a members-only neighborhood group, a member wrote that nobody answered the office line on a Sunday. PRIVATE-GROUP-MARKER-7731"
+    }
+  ],
+  "opportunities": [
+    {
+      "title": "No online request path found on inspected pages",
+      "observedFact": "On the 3 pages inspected on 2026-11-18, a phone number is listed, and no contact form, booking link or after-hours statement was found.",
+      "confidence": "medium",
+      "caveats": [
+        "html_only"
+      ],
+      "evidence": [
+        {
+          "id": "ev_93b67c9e-ec7c-44c8-ad33-7b4dcfee3cd0",
+          "sensitivity": "public",
+          "observation": "A phone number ((616) 555-0109) is shown on 3 of 3 inspected pages (/, /services, /contact).",
+          "observedAt": "2026-11-18T12:00:00.000Z",
+          "sources": [
+            "https://birchwood-heating.example.invalid/",
+            "https://birchwood-heating.example.invalid/services",
+            "https://birchwood-heating.example.invalid/contact"
+          ]
+        },
+        {
+          "id": "ev_2a2284f1-f6c2-4a6f-b4f5-7ba32f9888a2",
+          "sensitivity": "public",
+          "observation": "No booking or appointment-request link was found in the HTML of the 3 pages inspected (/, /services, /contact).",
+          "observedAt": "2026-11-18T12:00:00.000Z",
+          "sources": [
+            "https://birchwood-heating.example.invalid/",
+            "https://birchwood-heating.example.invalid/services",
+            "https://birchwood-heating.example.invalid/contact"
+          ]
+        },
+        {
+          "id": "ev_721c196e-8535-449b-a508-6a0be7a08b5c",
+          "sensitivity": "public",
+          "observation": "No contact form was found in the HTML of the 3 pages inspected (/, /services, /contact).",
+          "observedAt": "2026-11-18T12:00:00.000Z",
+          "sources": [
+            "https://birchwood-heating.example.invalid/",
+            "https://birchwood-heating.example.invalid/services",
+            "https://birchwood-heating.example.invalid/contact"
+          ]
+        },
+        {
+          "id": "ev_3b88c049-c649-4206-8e9c-bf665ffd78f8",
+          "sensitivity": "public",
+          "observation": "No statement about after-hours or emergency availability was found in the HTML of the 3 pages inspected (/, /services, /contact).",
+          "observedAt": "2026-11-18T12:00:00.000Z",
+          "sources": [
+            "https://birchwood-heating.example.invalid/",
+            "https://birchwood-heating.example.invalid/services",
+            "https://birchwood-heating.example.invalid/contact"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "One comment describes an unreturned contact attempt",
+      "observedFact": "A comment observed on 2026-10-05 describes a contact attempt that was not returned.",
+      "confidence": "low",
+      "caveats": [
+        "anecdotal"
+      ],
+      "evidence": [
+        {
+          "id": "ev_acd0711a-58bf-4b42-9b9d-166f0774f0b9",
+          "sensitivity": "restricted",
+          "observation": "In a members-only neighborhood group, a member wrote that nobody answered the office line on a Sunday. PRIVATE-GROUP-MARKER-7731",
+          "observedAt": "2026-10-05T00:00:00.000Z",
+          "sources": [
+            "Manually recorded observation"
+          ]
+        }
+      ]
+    }
+  ],
+  "redaction": {
+    "opportunitiesIncluded": 1,
+    "opportunitiesWithheld": [
+      {
+        "title": "One comment describes an unreturned contact attempt",
+        "reason": "Relies on restricted, personal or non-public evidence."
+      }
+    ],
+    "evidenceWithheld": 1,
+    "sourcesWithheld": 1
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "synthetic": true,
+  "business": {"id": "biz-example", "name": "Example Heating & Cooling", "city": "Grand Rapids", "state": "MI"},
+  "run": {"id": "run-example", "mode": "mock", "status": "review_ready", "spent_cents": 0},
+  "sources": [{"id": "src-001", "source_type": "website", "url": "https://example.invalid/", "access_status": "ok", "retrieved_at": "2026-11-18T00:00:00Z", "synthetic": true}],
+  "evidence": [{"id": "ev-001", "source_id": "src-001", "observation": "No appointment-request link visible in the synthetic inspected-page fixture", "verification_status": "mock", "identity_match_status": "confirmed_mock"}],
+  "opportunities": [{"title": "Potential after-hours contact friction", "evidence_ids": ["ev-001"], "interpretation": "Some visitors may prefer an online request path", "alternative_explanations": ["Phone-first service", "Offsite booking path"], "owner_question": "How are after-hours requests captured?", "possible_fix": "Add request intake if owner confirms need", "confidence": "low"}]
+}

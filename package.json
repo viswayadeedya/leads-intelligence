@@ -1,0 +1,34 @@
+{
+  "name": "opportunity-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evidence-first prospect investigation tool (internal, single operator, mock-first).",
+  "scripts": {
+    "dev": "node scripts/run-next.mjs dev --hostname 127.0.0.1 --port 3210",
+    "build": "node scripts/run-next.mjs build",
+    "start": "node scripts/run-next.mjs start --hostname 127.0.0.1 --port 3210",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "secret-scan": "node scripts/secret-scan.mjs",
+    "check:bundle": "node scripts/check-client-bundle.mjs",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run secret-scan && npm run check:bundle && npm run audit",
+    "audit": "npm audit --omit=dev"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "parse5": "8.1.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.6",
+    "typescript": "6.0.3",
+    "vitest": "5.1.1"
+  }
+}
