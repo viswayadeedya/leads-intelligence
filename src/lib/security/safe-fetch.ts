@@ -26,6 +26,7 @@ import dns from 'node:dns';
 import http from 'node:http';
 import https from 'node:https';
 import { classifyAddress, validateFetchUrl } from './net-guard';
+import { ALLOW_ALL, parseRobots, ROBOTS_AGENT, type RobotsPolicy } from '../sources/robots';
 import type { FetchOutcome, PageTransport } from '../sources/transport';
 
 export type ResolvedAddress = { address: string; family: 4 | 6 };
@@ -69,6 +70,18 @@ export type SafeFetchOptions = {
    * never requested.
    */
   isAllowedHost?: (host: string) => boolean;
+  /**
+   * Hosts for which a page asked for over HTTPS may be read over plain HTTP
+   * when the site itself redirects there. Default: none. Set only when the
+   * operator approved plain HTTP for that exact hostname.
+   */
+  allowPlainHttp?: (host: string) => boolean;
+  /**
+   * Called before a redirect that leaves the current origin (scheme + host) is
+   * followed, so the new origin's robots.txt can be read first. Anything other
+   * than 'allow' stops the fetch; the target is then never requested.
+   */
+  beforeCrossOrigin?: (next: URL) => Promise<'allow' | 'robots_disallow' | 'robots_unreachable'>;
 };
 
 export type SafeFetchDeps = { resolve: Resolver; request: PinnedRequest };
@@ -270,6 +283,7 @@ export async function safeFetch(rawUrl: string, options: SafeFetchOptions, deps:
   let current = rawUrl;
   let firstHost: string | null = null;
   let previousProtocol: string | null = null;
+  let previousOrigin: string | null = null;
 
   for (let hop = 0; hop <= options.maxRedirects; hop++) {
     const verdict = validateFetchUrl(current);
@@ -279,11 +293,20 @@ export async function safeFetch(rawUrl: string, options: SafeFetchOptions, deps:
     if (firstHost === null) firstHost = host;
     if (hop > 0) {
       const allowed = options.isAllowedHost ? options.isAllowedHost(host) : bareHost(host) === bareHost(firstHost);
-      if (!allowed) return { kind: 'restricted', reason: 'redirected_off_domain', httpStatus: null };
-      // A page asked for over TLS is never read over plain HTTP.
-      if (previousProtocol === 'https:' && url.protocol === 'http:') return blocked('https_downgrade');
+      // Reported so the operator can see where the site points. The target is not resolved or requested.
+      const redirectedTo = `${url.protocol}//${host}`;
+      if (!allowed) return { kind: 'restricted', reason: 'redirected_off_domain', httpStatus: null, redirectedTo };
+      // A page asked for over TLS is not read over plain HTTP, unless the operator approved that for this host.
+      if (previousProtocol === 'https:' && url.protocol === 'http:' && !(options.allowPlainHttp && options.allowPlainHttp(host))) {
+        return { kind: 'error', reason: 'security_blocked:https_downgrade', retryable: false, redirectedTo };
+      }
+    }
+    if (hop > 0 && previousOrigin !== null && url.origin !== previousOrigin && options.beforeCrossOrigin) {
+      const verdict = await options.beforeCrossOrigin(url);
+      if (verdict !== 'allow') return { kind: 'restricted', reason: verdict, httpStatus: null, redirectedTo: `${url.protocol}//${host}` };
     }
     previousProtocol = url.protocol;
+    previousOrigin = url.origin;
 
     let answers: ResolvedAddress[];
     try {
@@ -404,6 +427,11 @@ export type ApprovedLiveOptions = {
   timeoutMs: number;
   maxBytes: number;
   maxRedirects: number;
+  /**
+   * Approved hostnames that may be read over plain HTTP when the site redirects
+   * HTTPS there. Must be a subset of approvedHosts. Default: none.
+   */
+  plainHttpHosts?: readonly string[];
   /** minimum pause between two requests to the same host */
   minDelayMs: number;
   /** hard ceiling on HTTP requests put on the wire, across all hosts, for this transport */
@@ -450,6 +478,8 @@ export function createApprovedLiveTransport(
 ): PageTransport & { readonly approvedHosts: readonly string[]; readonly log: RequestLogEntry[]; readonly wireRequests: () => number } {
   const approved = validateApprovedHosts(options.approvedHosts);
   const approvedSet: ReadonlySet<string> = new Set(approved);
+  const plainHttp = new Set((options.plainHttpHosts ?? []).map((h) => String(h).trim().toLowerCase()));
+  for (const host of plainHttp) if (!approvedSet.has(host)) throw new Error(`"${host}" is marked for plain HTTP but is not an approved hostname.`);
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const now = deps.now ?? (() => Date.now());
   const resolve = deps.resolve ?? systemResolver;
@@ -467,6 +497,67 @@ export function createApprovedLiveTransport(
   };
   const lastRequestAt = new Map<string, number>();
   const log: RequestLogEntry[] = [];
+  const fetchOptions = {
+    timeoutMs: options.timeoutMs,
+    maxBytes: options.maxBytes,
+    maxRedirects: options.maxRedirects,
+    userAgent: options.userAgent ?? DEFAULT_USER_AGENT,
+    // A redirect may only land on another approved hostname (for example the "www." form, if it was approved).
+    isAllowedHost: (h: string) => approvedSet.has(h.toLowerCase()),
+    allowPlainHttp: (h: string) => plainHttp.has(h.toLowerCase()),
+  };
+  const pause = async (host: string): Promise<void> => {
+    const last = lastRequestAt.get(host);
+    if (last !== undefined) {
+      const wait = options.minDelayMs - (now() - last);
+      if (wait > 0) await sleep(wait);
+    }
+    lastRequestAt.set(host, now());
+  };
+
+  // robots.txt belongs to an origin. The investigation reads it for the address it starts
+  // from; when the site redirects to another approved origin (for example "www."), that
+  // origin's robots.txt is read here, before the redirect is followed.
+  const robotsByOrigin = new Map<string, RobotsPolicy | 'unreachable'>();
+  /** robots.txt responses already obtained in this run, so no origin is asked for it twice */
+  const robotsOutcomeByOrigin = new Map<string, FetchOutcome>();
+  const policyFrom = (res: FetchOutcome): RobotsPolicy | 'unreachable' => {
+    if (res.kind === 'ok') return parseRobots(res.body.slice(0, 20_000), ROBOTS_AGENT);
+    if (res.kind === 'restricted' || (res.kind === 'unavailable' && res.httpStatus !== null && res.httpStatus < 500)) return ALLOW_ALL;
+    return 'unreachable';
+  };
+  const rememberRobots = (origin: string, res: FetchOutcome): void => {
+    robotsByOrigin.set(origin, policyFrom(res));
+    robotsOutcomeByOrigin.set(origin, res);
+  };
+  const beforeCrossOrigin = async (next: URL): Promise<'allow' | 'robots_disallow' | 'robots_unreachable'> => {
+    // Reading a robots.txt is always permitted; it is how the rules are learned.
+    if (next.pathname === '/robots.txt') return 'allow';
+    let policy = robotsByOrigin.get(next.origin);
+    if (policy === undefined) {
+      const started = now();
+      const before = wire;
+      await pause(next.hostname.toLowerCase());
+      const robotsUrl = `${next.origin}/robots.txt`;
+      // Same guards as any page. Its own redirects must stay on this exact host.
+      const res = await safeFetch(robotsUrl, { ...fetchOptions, maxRedirects: 1, isAllowedHost: (h: string) => h.toLowerCase() === next.hostname.toLowerCase() }, { resolve, request: capped });
+      lastRequestAt.set(next.hostname.toLowerCase(), now());
+      rememberRobots(next.origin, res);
+      policy = robotsByOrigin.get(next.origin)!;
+      log.push({
+        at: new Date(started).toISOString(),
+        url: robotsUrl,
+        outcome: res.kind,
+        detail: `robots.txt of the redirect target: ${res.kind === 'ok' ? `HTTP ${res.httpStatus}` : res.reason}`,
+        httpStatus: 'httpStatus' in res ? res.httpStatus : null,
+        bytes: res.kind === 'ok' ? res.bytes : null,
+        ms: now() - started,
+        wireRequests: wire - before,
+      });
+    }
+    if (policy === 'unreachable') return 'robots_unreachable';
+    return policy.isAllowed(next.pathname || '/') ? 'allow' : 'robots_disallow';
+  };
 
   return {
     id: 'live-approved-hosts',
@@ -503,26 +594,26 @@ export function createApprovedLiveTransport(
         record(null, 'host_not_approved');
         return blocked('host_not_approved');
       }
-      const last = lastRequestAt.get(host);
-      if (last !== undefined) {
-        const wait = options.minDelayMs - (now() - last);
-        if (wait > 0) await sleep(wait);
+      const asked = new URL(url);
+      const isRobots = asked.pathname === '/robots.txt';
+      const known = isRobots ? robotsOutcomeByOrigin.get(asked.origin) : undefined;
+      if (known) {
+        record(known, 'robots.txt already read in this run; not requested again');
+        return known;
+      }
+      await pause(host);
+      const outcome = await safeFetch(url, { ...fetchOptions, beforeCrossOrigin }, { resolve, request: capped });
+      if (isRobots) {
+        rememberRobots(asked.origin, outcome);
+        // If it was served from another origin of the site, it is that origin's robots.txt too.
+        if (outcome.kind === 'ok') {
+          const servedFrom = new URL(outcome.finalUrl).origin;
+          if (servedFrom !== asked.origin) rememberRobots(servedFrom, outcome);
+        }
       }
       lastRequestAt.set(host, now());
-      const outcome = await safeFetch(
-        url,
-        {
-          timeoutMs: options.timeoutMs,
-          maxBytes: options.maxBytes,
-          maxRedirects: options.maxRedirects,
-          userAgent: options.userAgent ?? DEFAULT_USER_AGENT,
-          // A redirect may only land on another approved hostname (for example the "www." form, if it was approved).
-          isAllowedHost: (h) => approvedSet.has(h.toLowerCase()),
-        },
-        { resolve, request: capped },
-      );
-      lastRequestAt.set(host, now());
-      record(outcome, outcome.kind === 'ok' ? `HTTP ${outcome.httpStatus}; final ${outcome.finalUrl}` : outcome.reason);
+      const pointedAt = outcome.kind !== 'ok' && 'redirectedTo' in outcome && outcome.redirectedTo ? `; redirect pointed at ${outcome.redirectedTo} (not requested)` : '';
+      record(outcome, outcome.kind === 'ok' ? `HTTP ${outcome.httpStatus}; final ${outcome.finalUrl}` : `${outcome.reason}${pointedAt}`);
       return outcome;
     },
   };

@@ -120,7 +120,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               Business website (synthetic fixtures): <Badge tone="ok">Enabled</Badge>
             </li>
             <li>
-              Business website (live fetch): <Badge>Built, locked</Badge> Tested only against controlled servers on this computer; never used on a real site.
+              Business website (live fetch): <Badge>Not available in this app</Badge> A separate operator command can read websites you approve by exact hostname. This app cannot.
             </li>
             <li>
               Manual observations entered by you: <Badge tone="ok">Enabled</Badge>

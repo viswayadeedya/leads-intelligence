@@ -12,12 +12,67 @@ A reviewer can inspect repository and packet directly when provided access; do n
 
 ---
 
+# Live-evidence prototype, branch `feature/live-evidence-prototype` — 2026-11-18
+
+**Read this first.** It sits on top of the hardening branch (next section), which is now published as `origin/review/milestone-1-hardening` at `4801fe5`. This branch is local only. Verdict requested: PASS / CONDITIONAL / FAIL. The builder does not certify security or results.
+
+## L1. Commits
+- `git log --oneline review/milestone-1-hardening..feature/live-evidence-prototype` lists them. Diff: `git diff review/milestone-1-hardening...feature/live-evidence-prototype`.
+- Not pushed. Nothing merged or deployed. `main` untouched. `AGENTS.md` untouched and untracked.
+- New: `scripts/live-investigate.mjs`; `tools/live-test/{approvals,run,report,investigate.live}.ts`, `vitest.live.config.mts`; `tests/live-approved-hosts.test.ts`.
+- Changed: `src/lib/security/safe-fetch.ts`; `src/lib/services/investigations.ts`; `src/lib/sources/{html-extract,website-evidence,transport,robots}.ts`; `src/lib/{identity,types,config}.ts`; `src/lib/services/reports.ts`; `src/components/ui.tsx`; `src/app/settings/page.tsx`; four existing test files; delivery documents.
+
+## L2. What is real, what is still mock, what is not in the repository
+| | |
+|---|---|
+| Real | Three HVAC business websites were requested over the network by the approved-host transport, with the operator's approval of each exact hostname. 11 pages read. 14 observations recorded. All checked by hand against the live pages. |
+| Still mock | The web app (unchanged: mock-only). The reasoner (rule set, no LLM). |
+| Not in this repository, on purpose | The businesses' names and hostnames, the approvals file, the three internal reports and the verification table. They are in `research-private/live-test/` (git-ignored). A reviewer needs the owner to share that folder to check the findings themselves. |
+| Not done | Operator review of the observations; display of live data in the app; retention policy; network-level egress control. |
+
+## L3. Result in one table
+| | A | B | C |
+|---|---|---|---|
+| Pages read | 3 | 3 | 5 |
+| Identity | confirmed from site text | confirmed from site text | confirmed from site text |
+| Observations | 5 | 4 | 5 |
+| Verified by hand | 5 | 4 | 3, plus 1 incomplete |
+| False positives | 0 | 0 | **1** ("no emergency or after-hours statement"; the page has one) |
+| Opportunities proposed by the tool | 0 | 0 | 0 |
+| Evidence-supported question for the owner (builder's view) | yes, weak | yes, weak | yes, moderate |
+
+"A report with no defensible opportunity" is what all three are. Whether a grounded question is commercially enough is not something this test can answer.
+
+## L4. Security: what a reviewer should try to break
+| Claim | Where it is tested |
+|---|---|
+| A live request is possible only through `scripts/live-investigate.mjs` with an approvals file, a label and `--confirm-live` | `tests/live-approved-hosts.test.ts`, "the launcher and entry point refuse by default" |
+| Only exact approved hostnames are reachable: not subdomains, look-alikes, redirect targets or other approved businesses | same file, "approved-host transport against controlled servers" and the end-to-end block |
+| The socket layer refuses non-public addresses, odd ports and unapproved hosts even when called directly | `tests/ssrf.test.ts`, "the socket layer itself refuses..." |
+| No environment variable enables any of this; nothing in `src/` or `scripts/` constructs the transport | last tests in both live test files |
+| robots.txt is obeyed on every origin the run touches | "before following a redirect to another approved origin..." and the pipeline tests |
+| No form is ever submitted; nothing is reviewed or approved on the operator's behalf | end-to-end test (asserts no non-GET request, all evidence `needs_review`, no approvals in the audit trail) |
+| The approvals file and the output cannot be committed by accident | launcher refuses a path git would track |
+
+### Residual risks specific to this branch
+1. **Egress is restricted only inside the process.** The owner accepted this for three supervised runs. A bug in all three checks, or a compromised dependency in the same process, is not contained by anything outside it.
+2. The launcher runs the investigation under the test runner because it is the project's only TypeScript runner. It works; it is not a design anyone should keep.
+3. The approvals file is a JSON file the operator (or, here, the builder on the operator's stated answers) writes. Nothing signs it. Its protection is that it must exist, be fresh, be outside git, and be named on the command line.
+4. One plain-HTTP redirect hop was followed for A with the owner's permission. A network attacker could alter that hop; the final page was TLS-verified and on an approved hostname.
+5. Real page excerpts are now stored locally and are still not screened for personal data. One excerpt contains a business email address that the site itself publishes.
+6. The extractor and verifier were adjusted after seeing three sites. 1 of 14 observations was false. No precision figure should be quoted from this.
+
+## L5. Recommended next action
+Owner: read the private verification file against the three live sites and reject the one false observation. Then decide whether to merge `review/milestone-1-hardening` and this branch. Reviewer: section L4.
+
+---
+
 # Review branch `review/milestone-1-hardening` — 2026-11-18
 
 **Read this section first; it supersedes parts of "Milestone 1" below where they conflict.** Verdict requested: PASS / CONDITIONAL / FAIL on this branch before it is merged. The builder does not certify security or results.
 
 ## R1. Commit and changed files
-- **Branch:** `review/milestone-1-hardening`, one commit on top of `main` (`22068db`). Print it with `git log --oneline main..review/milestone-1-hardening`. **Not pushed. Not merged. Nothing deployed.**
+- **Branch:** `review/milestone-1-hardening`, one commit (`4801fe5`) on top of `main` (`22068db`). Published on 2026-11-18 at the owner's request as `origin/review/milestone-1-hardening`. Not merged. Nothing deployed.
 - **Diff to review:** `git diff main...review/milestone-1-hardening`.
 - A remote (`origin`) exists and `main` is published there. That was done by the owner, not by the builder. The untracked file `AGENTS.md` was not created by the builder and is not in this commit.
 - New: `src/lib/security/passphrase.ts`; `tests/{owner-view-audit,semantic-claims,live-fetch-controlled,auth-hardening}.test.ts`; `tests/lab/controlled-net.ts`; `scripts/{gitleaks-scan,auth-reset}.mjs`; `.gitleaks.toml`; `.gitleaksignore`; `.githooks/pre-commit`; four screenshots; `docs/delivery/test-evidence/owner-view-audit-BEFORE-fix.txt`.

@@ -51,3 +51,17 @@ Commit: the single commit on that branch after `22068db` (`git log --oneline mai
 | Resource caps | as before, plus the request cap against a controlled 40-link page | Pass. IP rate limit: NOT IMPLEMENTED | |
 | Supply chain | lockfile, `npm audit --omit=dev` = 0; gitleaks installed through winget with hash verification | Dev tooling advisories unfixed. **CI: NONE** | |
 | Incident readiness | `npm run auth:reset`; runbook text | Passphrase reset tested by hand. Otherwise NOT TESTED | |
+
+---
+
+## Builder-submitted evidence — branch `feature/live-evidence-prototype` (2026-11-18). NOT A REVIEW.
+First real requests made by this project: three operator-approved business websites. The reviewer fills in the verdict column.
+
+| Gate | Builder's evidence | Builder's claim | Reviewer verdict |
+|---|---|---|---|
+| SSRF/egress | `tests/live-approved-hosts.test.ts`, `tests/ssrf.test.ts` (socket layer), `tests/live-fetch-controlled.test.ts`; live request logs in the private reports | Exact-hostname allowlist enforced at three points in the process. **Network-level egress restriction: NOT IMPLEMENTED; accepted by the owner for this supervised test only (ADR-025)** | |
+| Access restrictions | robots.txt per origin (tests); live logs show GET only | No page was refused, no bot check appeared, no form was submitted. Two redirects were refused until the owner approved the target | |
+| Privacy | Launcher refuses tracked paths; `.gitignore`; ADR-026 | No real business is named in the repository. Page excerpts are stored locally, unscreened | |
+| Evidence integrity | Manual check of 14 observations against the live pages (private verification file) | 12 verified, 1 incomplete, **1 false "not found"**; rule fixed with a regression test | |
+| Outbound safety | End-to-end test: nothing reviewed, approved, drafted or sent | Pass. All observations remain `needs_review` | |
+| Retention | Live data sits in one ignored folder | **NOT DEFINED.** Delete the folder by hand | |

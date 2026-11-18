@@ -138,6 +138,7 @@ const CAVEAT_WORDS: Record<string, string> = {
   stale: 'Older than the freshness window',
   html_only: 'HTML only; JavaScript content not seen',
   site_may_be_outdated: 'Site may be outdated',
+  unencrypted_http: 'Page was served over unencrypted HTTP; it could have been altered in transit',
 };
 
 export function Caveats({ caveats }: { caveats: string[] }) {

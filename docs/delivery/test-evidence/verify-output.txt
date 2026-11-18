@@ -10,32 +10,32 @@ npm notice run vitest run
  RUN  v5.1.1 <repo>
 
 
- Test Files  13 passed (13)
-      Tests  461 passed (461)
-   Start at  12:25:08
-   Duration  6.66s (tests 85%, import 14%, transform 1%)
+ Test Files  14 passed (14)
+      Tests  522 passed (522)
+   Start at  13:16:13
+   Duration  6.79s (tests 85%, import 14%, transform 1%)
 
 npm notice run opportunity-intelligence@0.1.0 secret-scan
 npm notice run node scripts/gitleaks-scan.mjs && node scripts/secret-scan.mjs
 gitleaks-scan: gitleaks 8.30.1
 gitleaks-scan: history (all commits, all branches): 0 findings
 gitleaks-scan: working folder: 0 findings
-secret-scan: 135 files scanned, 0 finding(s)
+secret-scan: 161 files scanned, 0 finding(s)
 npm notice run opportunity-intelligence@0.1.0 check:bundle
 npm notice run node scripts/check-client-bundle.mjs
 ▲ Next.js 16.4.6 (Turbopack)
-✓ Running next.config.ts took 20ms
+✓ Running next.config.ts took 18ms
 
   Creating an optimized production build ...
-✓ Compiled successfully in 486ms
+✓ Compiled successfully in 586ms
   Running TypeScript ...
-  Finished TypeScript in 1183ms ...
+  Finished TypeScript in 2.2s ...
   Collecting page data using 17 workers ...
   Generating static pages using 17 workers (0/11) ...
   Generating static pages using 17 workers (2/11) 
   Generating static pages using 17 workers (5/11) 
   Generating static pages using 17 workers (8/11) 
-✓ Generating static pages using 17 workers (11/11) in 407ms
+✓ Generating static pages using 17 workers (11/11) in 395ms
   Finalizing page optimization ...
 
 Route (app)

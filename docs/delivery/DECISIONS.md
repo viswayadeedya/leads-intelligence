@@ -130,3 +130,37 @@ Entries below: 2026-11-18, review branch `review/milestone-1-hardening`. Each is
 2. **Phase 2 go-ahead** (unchanged, still open).
 3. ~~One-click local sign-in~~ Closed: removed.
 4. **Merge of `review/milestone-1-hardening` into `main`**, and whether to enable the pre-commit hook and add CI.
+
+---
+Entries below: 2026-11-18, branch `feature/live-evidence-prototype`.
+
+## ADR-024 — Operator live test: approved hostnames only, outside the web app
+**Decision:** real requests are possible only through `scripts/live-investigate.mjs`, for one business at a time, to the exact hostnames listed for that business in an operator approvals file. The web app stays mock-only. The generic live transport was removed; `createApprovedLiveTransport` is the only transport that can make a real request.
+**Why not a mode of the app:** an environment switch on a running server is easier to leave on, and the app's screens say "mock" throughout. A separate command that names its target every time is harder to misuse.
+**Limits fixed in code, not configurable from the environment:** 5 pages, 8 page requests, 20 requests on the wire, 10 s, 1 MB, 3 redirects, 2 s between requests.
+**Supersedes** the "locked, never used on a real site" part of ADR-021. ADR-006 (the app is mock-only) stands.
+
+## ADR-025 — Owner accepted application-level egress enforcement for the three-site test
+**Context:** the security protocol requires network-level egress restrictions before live fetching. None exists. The builder cannot change firewall settings.
+**Decision (the owner's, 2026-11-18):** proceed with application-level enforcement only, for these supervised runs. Recorded verbatim in the approvals file.
+**What enforces it:** the transport's host list; `safeFetch` validation of every URL, DNS answer and redirect; the socket layer's connect-time check of host, address and port, and of the peer address after connecting.
+**Scope:** this acceptance does not extend to a hosted, scheduled, unattended or larger live use. For those the requirement is unmet and blocks.
+
+## ADR-026 — Real businesses are never named in the repository
+**Decision:** names, hostnames, approvals, reports and verification tables for real businesses live in `research-private/` (git-ignored). Tracked documents use labels (A, B, C). The launcher refuses an approvals file or output folder that git would track.
+**Why:** reports are private by default (security protocol); the repository has a remote; a prospect list with hypotheses about named businesses is not something to publish by accident.
+**Cost:** an independent reviewer cannot check the findings from the repository alone. The owner has to share the private folder.
+
+## ADR-027 — Evidence rules changed after contact with real pages
+- A page that was truncated, is drawn by scripts, or embeds a third-party form, scheduler or chat widget cannot support "not found"; the question becomes an unknown.
+- robots.txt is read per origin, including the origin a redirect leads to, before anything is requested there.
+- The investigation continues on the origin the home page was served from, when that host is approved.
+- HTTPS-to-HTTP redirects stay refused unless the operator allows plain HTTP for that exact hostname; observations from pages that arrived over plain HTTP carry a caveat.
+- Any mention of emergencies counts as an after-hours statement (a narrower rule produced a false "not found" on a real site).
+**Limit:** these were written after seeing three sites. They are not validated beyond those.
+
+## Open questions that are the owner's to decide (current)
+1. **Third-party comments in owner reports** (unchanged).
+2. **Is a grounded question enough?** Three real investigations produced no defensible opportunity and one or two fair questions each. Whether to approach an owner on that basis is a commercial decision, not an engineering one.
+3. **Merge** of `review/milestone-1-hardening` and `feature/live-evidence-prototype`.
+4. **Retention for live data**, and network-level egress control, before any further live use.

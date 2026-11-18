@@ -213,7 +213,9 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
 
 const BOOKING_TEXT = /\b(book (?:online|now|an? (?:appointment|visit|service))|book|schedule (?:online|service|an? (?:appointment|visit))|schedule now|appointments?|request (?:service|an appointment|a quote|an estimate|a visit)|get a (?:free )?(?:quote|estimate)|online scheduling)\b/i;
 const BOOKING_HOSTS = ['housecallpro.com', 'servicetitan.com', 'getjobber.com', 'calendly.com', 'schedulenow.com', 'workiz.com', 'squareup.com', 'acuityscheduling.com'];
-const AFTER_HOURS = /\b(24\s?\/\s?7|24[- ]hours?|after[- ]hours|emergency (?:service|repairs?|calls?|line)|nights? (?:and|&) weekends?|around the clock)\b/i;
+// Any mention of emergencies counts. An earlier, narrower form ("emergency service") missed
+// "emergency HVAC service" on a real site and produced a false "not found" (live test, business C).
+const AFTER_HOURS = /\b(24\s?\/\s?7|24[- ]hours?|open 24|after[- ]hours|emergenc(?:y|ies)|nights? (?:and|&) weekends?|around the clock|day or night)\b/i;
 const PHONE_SCHEDULING = /\bcall\b[^.\n]{0,50}\b(?:schedule|book|appointment)\b|\b(?:schedule|book)\b[^.\n]{0,40}\bby (?:phone|calling)\b/i;
 const HOURS = /\b(?:mon|monday|tue|tuesday|wed|thu|fri|friday|sat|sun|weekdays)\b[^.\n]{0,40}\b\d{1,2}(?::\d{2})?\s?(?:am|pm|a\.m\.|p\.m\.)/i;
 const COPYRIGHT = /(?:©|\(c\)|copyright)\s*(?:\d{4}\s*[-–]\s*)?(\d{4})/i;

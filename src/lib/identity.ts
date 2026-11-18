@@ -103,14 +103,32 @@ const PARENT_PATTERNS = [
   /\ban? ([A-Z][\w&' -]{2,60}) company\b/,
 ];
 
-/** "City, ST" mentions found in page text. */
+const STATE_NAMES: Record<string, string> = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO', connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA',
+  hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD',
+  massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS', missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA', washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY',
+};
+const STATE_CODES = new Set(Object.values(STATE_NAMES));
+const CITY = "([A-Z][a-zA-Z.']+(?: [A-Z][a-zA-Z.']+){0,2})";
+
+/**
+ * City and state mentions found in page text, in the forms businesses actually
+ * write them: "Lowell, MI", "Lowell, Michigan" and "Lowell MI 49331".
+ * Only real state codes and names count, so "Heating, AC" is not a place.
+ */
 export function extractStatedLocations(text: string): { city: string; state: string }[] {
   const out: { city: string; state: string }[] = [];
-  const re = /\b([A-Z][a-zA-Z.]+(?: [A-Z][a-zA-Z.]+){0,2}),\s*([A-Z]{2})\b/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null && out.length < 50) {
-    out.push({ city: m[1]!.trim(), state: m[2]! });
+  const add = (city: string, state: string) => {
+    if (out.length < 50 && STATE_CODES.has(state)) out.push({ city: city.trim(), state });
+  };
+  for (const m of text.matchAll(new RegExp(`\\b${CITY},\\s*([A-Z]{2})\\b`, 'g'))) add(m[1]!, m[2]!);
+  for (const m of text.matchAll(new RegExp(`\\b${CITY},?\\s+(${Object.keys(STATE_NAMES).map((n) => n.replace(/\b[a-z]/g, (c) => c.toUpperCase())).join('|')})\\b`, 'g'))) {
+    add(m[1]!, STATE_NAMES[m[2]!.toLowerCase()]!);
   }
+  // No comma, but a ZIP code right after the state: "Lowell MI 49331".
+  for (const m of text.matchAll(new RegExp(`\\b${CITY}\\s+([A-Z]{2})\\s+\\d{5}\\b`, 'g'))) add(m[1]!, m[2]!);
   return out;
 }
 

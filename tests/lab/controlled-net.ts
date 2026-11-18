@@ -153,6 +153,12 @@ export class Lab {
     return this.publish(site, 80);
   }
 
+  /** Makes `plain` answer on port 80 of the same public-looking address that `tls` uses for `host`. */
+  alias(host: string, tls: Site, plain: Site): void {
+    this.nat.set(`${tls.ip}:80`, plain.port);
+    this.dns.set(host, [{ address: tls.ip, family: 4 }]);
+  }
+
   /** A hostname that resolves publicly but has nothing listening. */
   deadSite(host: string): void {
     const ip = `93.184.216.${this.nextIp++}`;

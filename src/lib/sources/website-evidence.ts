@@ -42,6 +42,9 @@ function candidate(
   extra: { confidence: Confidence; rationale: string; caveats: Caveat[]; sensitivity?: Sensitivity; locator?: Evidence['locator'] },
 ): EvidenceCandidate {
   const sourceRecordIds = records.map((r) => r.id);
+  // A page that arrived over plain HTTP could have been changed on the way; say so on the observation.
+  const overPlainHttp = records.some((r) => typeof r.queryContext.finalUrl === 'string' && r.queryContext.finalUrl.startsWith('http://'));
+  const caveats: Caveat[] = overPlainHttp && !extra.caveats.includes('unencrypted_http') ? [...extra.caveats, 'unencrypted_http'] : extra.caveats;
   const pages = records.map((r) => r.extracted?.path ?? r.sourceUrl ?? '');
   return {
     evidenceType,
@@ -53,7 +56,7 @@ function candidate(
     sensitivity: extra.sensitivity ?? 'public',
     confidence: extra.confidence,
     confidenceRationale: extra.rationale,
-    caveats: extra.caveats,
+    caveats,
     dedupeKey: `website:${evidenceType}`,
     checksum: sha256(JSON.stringify([evidenceType, polarity, observation, excerpt, sourceRecordIds])),
   };

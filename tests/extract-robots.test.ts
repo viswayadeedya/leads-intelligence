@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findPossibleDuplicate, normalizeDomain, normalizeName } from '@/lib/identity';
+import { extractStatedLocations, findPossibleDuplicate, normalizeDomain, normalizeName } from '@/lib/identity';
 import { candidatePaths, detectSignals, extractPage } from '@/lib/sources/html-extract';
 import { parseRobots } from '@/lib/sources/robots';
 
@@ -57,6 +57,27 @@ describe('extractPage', () => {
     expect(big.text.length).toBeLessThanOrEqual(60_000);
     // and it says so, so the page cannot be used to conclude that something is absent
     expect(big.readLimits).toEqual(expect.arrayContaining(['html_truncated', 'text_truncated']));
+  });
+
+  it('treats any mention of emergencies or round-the-clock opening as an after-hours statement (regression: live test, business C)', () => {
+    const afterHours = (body: string) => detectSignals(extractPage(`<html><body><p>${body}</p></body></html>`, 'https://acme.example.invalid/')).afterHours;
+    // the shape of wording that was missed: a word between "emergency" and "service"
+    expect(afterHours('From emergency HVAC service to new installations, we are ready to help.')).toContain('emergency HVAC service');
+    for (const text of ['We handle heating emergencies.', 'Open 24 Hours', 'Available 24/7', 'Call us day or night', '24-hour emergency services']) {
+      expect(afterHours(text), text).not.toBeNull();
+    }
+    expect(afterHours('Furnace repair and seasonal maintenance. Office open Monday to Friday.')).toBeNull();
+  });
+
+  it('reads locations the way real sites write them, and only real states', () => {
+    const got = (text: string) => extractStatedLocations(text).map((l) => `${l.city}|${l.state}`);
+    expect(got('Visit us at 410 Sample Street, Lowell, MI 49331.')).toContain('Lowell|MI');
+    expect(got('Serving Lowell, Michigan since 1990')).toContain('Serving Lowell|MI');
+    expect(got('410 Sample Street Lowell MI 49331').some((l) => l.endsWith('Lowell|MI'))).toBe(true);
+    expect(got('Traverse City, Michigan and Grand Rapids, MI')).toEqual(expect.arrayContaining(['Traverse City|MI', 'Grand Rapids|MI']));
+    // not places
+    expect(got('Heating, AC and Cooling, HV systems. Furnace, OK?')).toEqual(['Furnace|OK']);
+    expect(got('Call us today')).toEqual([]);
   });
 
   it('notes what it could not read: embedded widgets, script-drawn pages and link overflow', () => {

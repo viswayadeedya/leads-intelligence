@@ -107,6 +107,63 @@ describe('approved-host transport against controlled servers', () => {
     expect(lab.lookupCount(elsewhere)).toBe(0);
   });
 
+  it('a refused redirect is reported with where it pointed, and that place is never contacted', async () => {
+    const host = name('forwarder');
+    const target = name('real-home');
+    const targetSite = await lab.site(target, (_req, res) => sendHtml(res, html('the real site')));
+    await lab.site(host, (_req, res) => redirect(res, `http://${target}/welcome?utm=1`, 301));
+    const transport = createApprovedLiveTransport({ ...OPTS, approvedHosts: [host] }, deps());
+    const out = await transport.fetchPage(`http://${host}/`, 0);
+    // hostname only: no path, no query
+    expect(out).toMatchObject({ kind: 'restricted', reason: 'redirected_off_domain', redirectedTo: `http://${target}` });
+    expect(transport.log.at(-1)!.detail).toBe(`redirected_off_domain; redirect pointed at http://${target} (not requested)`);
+    expect(targetSite.hits).toEqual([]);
+    expect(lab.lookupCount(target)).toBe(0);
+  });
+
+  it('before following a redirect to another approved origin, that origin\'s robots.txt is read and obeyed', async () => {
+    const host = name('apex-robots');
+    const www = `www.${host}`;
+    let robotsStatus = 200;
+    const site = await lab.site(host, (req, res) => {
+      if (req.headers.host === host) return redirect(res, `http://${www}${req.url}`, 301);
+      if (req.url === '/robots.txt') {
+        if (robotsStatus !== 200) return sendHtml(res, 'error', robotsStatus);
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        return res.end('User-agent: *\nDisallow: /private\n');
+      }
+      return sendHtml(res, html(`<h1>${req.url}</h1>`));
+    });
+    lab.setDns(www, [{ address: site.ip, family: 4 }]);
+    const wwwHits = () => site.hits.filter((h) => h.host === www).map((h) => h.path);
+
+    const transport = createApprovedLiveTransport({ ...OPTS, approvedHosts: [host, www] }, deps());
+    expect(await transport.fetchPage(`http://${host}/`, 0)).toMatchObject({ kind: 'ok', finalUrl: `http://${www}/` });
+    expect(wwwHits()).toEqual(['/robots.txt', '/']);
+    // disallowed on the target origin: never requested there
+    expect(await transport.fetchPage(`http://${host}/private/prices`, 0)).toMatchObject({ kind: 'restricted', reason: 'robots_disallow', redirectedTo: `http://${www}` });
+    expect(await transport.fetchPage(`http://${host}/contact`, 0)).toMatchObject({ kind: 'ok' });
+    // robots.txt was read once and reused
+    expect(wwwHits()).toEqual(['/robots.txt', '/', '/contact']);
+    expect(transport.log.some((l) => l.detail.startsWith('robots.txt of the redirect target'))).toBe(true);
+
+    // an unreadable robots.txt on the target origin means nothing is fetched from it
+    robotsStatus = 503;
+    const second = createApprovedLiveTransport({ ...OPTS, approvedHosts: [host, www] }, deps());
+    const before = wwwHits().length;
+    expect(await second.fetchPage(`http://${host}/`, 0)).toMatchObject({ kind: 'restricted', reason: 'robots_unreachable' });
+    expect(wwwHits().slice(before)).toEqual(['/robots.txt']);
+    // none served (404): nothing is disallowed
+    robotsStatus = 404;
+    const third = createApprovedLiveTransport({ ...OPTS, approvedHosts: [host, www] }, deps());
+    expect(await third.fetchPage(`http://${host}/`, 0)).toMatchObject({ kind: 'ok' });
+  });
+
+  it('plain HTTP can only be allowed for a hostname that is itself approved', () => {
+    expect(() => createApprovedLiveTransport({ ...OPTS, approvedHosts: ['a.example.com'], plainHttpHosts: ['b.example.com'] }, deps())).toThrow(/not an approved hostname/);
+    expect(() => createApprovedLiveTransport({ ...OPTS, approvedHosts: ['a.example.com'], plainHttpHosts: ['a.example.com'] }, deps())).not.toThrow();
+  });
+
   it('an approved hostname that resolves to a private address is still refused, with no connection', async () => {
     const host = name('approved-but-private');
     lab.setDns(host, [{ address: '10.0.0.7', family: 4 }]);
@@ -315,6 +372,50 @@ describe.skipIf(!cert)('operator live test, end to end, against a controlled TLS
       expect(confirmed.markdown).toContain("NOT confirmed by the site's text; confirmed by the operator in the approval record");
     } finally {
       await second.l.close();
+      fs.rmSync(dirB, { recursive: true, force: true });
+    }
+  });
+
+  it('HTTPS that redirects to plain HTTP is refused by default and followed only where the operator approved it for that hostname', async () => {
+    const l = await Lab.start();
+    const dirA = outDir();
+    const dirB = outDir();
+    try {
+      // The TLS listener only redirects; the plain-HTTP listener for the same name serves the site.
+      const tls = await l.tlsSite(HOST, cert!, (req, res) => redirect(res, `http://${HOST}${req.url}`, 301));
+      const plain = await l.site(`plain-${HOST}`, (req, res) => {
+        if (req.url === '/robots.txt') sendHtml(res, html('Not found'), 404);
+        else if (req.url === '/') sendHtml(res, HOME);
+        else if (req.url === '/services') sendHtml(res, SERVICES);
+        else if (req.url === '/contact') sendHtml(res, CONTACT);
+        else sendHtml(res, html('Not found'), 404);
+      });
+      // Same hostname, port 80, on the same public-looking address as the TLS listener.
+      l.alias(HOST, tls, plain);
+      const net = { resolve: l.resolver, createRequest: l.requestFactory };
+
+      const refused = await runLiveInvestigation({ approvals: approvalsFor(), label: 'T', outDir: dirA, deps: net, limits: fast });
+      expect(refused.status).toBe('partial');
+      expect(plain.hits).toEqual([]);
+      expect(refused.markdown).toContain(`redirect pointed at http://${HOST} (not requested)`);
+      expect(JSON.parse(fs.readFileSync(refused.dataPath, 'utf8')).evidence).toEqual([]);
+
+      const allowed = await runLiveInvestigation({ approvals: approvalsFor({ plainHttpHosts: [HOST] }), label: 'T', outDir: dirB, deps: net, limits: fast });
+      expect(allowed.status).toBe('review_ready');
+      // robots.txt of the plain-HTTP origin is asked for before any page is followed there.
+      // It is missing (404) here, and a 404 reached through a redirect does not say which
+      // origin answered, so that origin is asked once more; it is never asked a third time.
+      expect(plain.hits.map((h) => h.path)).toEqual(['/robots.txt', '/robots.txt', '/', '/services', '/contact']);
+      expect(l.strayDials()).toEqual([]);
+      // every observation says the page came over unencrypted HTTP, and the report shows where it was served from
+      const db = JSON.parse(fs.readFileSync(allowed.dataPath, 'utf8'));
+      expect(db.evidence.length).toBeGreaterThan(0);
+      expect(db.evidence.every((e: { caveats: string[] }) => e.caveats.includes('unencrypted_http'))).toBe(true);
+      expect(db.sourceRecords.every((r: { queryContext: { finalUrl: string } }) => r.queryContext.finalUrl.startsWith(`http://${HOST}/`))).toBe(true);
+      expect(allowed.markdown).toContain('UNENCRYPTED HTTP');
+    } finally {
+      await l.close();
+      fs.rmSync(dirA, { recursive: true, force: true });
       fs.rmSync(dirB, { recursive: true, force: true });
     }
   });

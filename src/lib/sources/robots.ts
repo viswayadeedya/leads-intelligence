@@ -2,6 +2,9 @@
 // Allow/Disallow with * and $, longest match wins, Allow wins ties.
 // robots.txt is an access signal we honor; it is not a permission grant.
 
+/** The product token this tool looks for in robots.txt (it also obeys "*"). */
+export const ROBOTS_AGENT = 'opportunityintelligenceresearch';
+
 type Rule = { allow: boolean; pattern: string };
 type Group = { agents: string[]; rules: Rule[] };
 

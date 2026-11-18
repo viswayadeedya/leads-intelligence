@@ -31,6 +31,11 @@ const BusinessSchema = z.strictObject({
    * Used only when the site's own text does not confirm name and location.
    */
   operatorConfirmsIdentity: z.boolean(),
+  /**
+   * Optional. Approved hostnames (from approvedHosts) that may be read over plain HTTP
+   * because the site itself redirects its HTTPS address there. Each needs the operator's say-so.
+   */
+  plainHttpHosts: z.array(z.string()).max(MAX_HOSTS_PER_BUSINESS).optional(),
   selectionNote: line(400),
 });
 
@@ -40,11 +45,11 @@ export const ApprovalsSchema = z.strictObject({
   /** ISO timestamp of the approval */
   approvedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/),
   /** how the approval was given, in the operator's or the recorder's words */
-  approvalRecord: line(600),
+  approvalRecord: line(1500),
   businesses: z.array(BusinessSchema).min(1).max(MAX_BUSINESSES),
 });
 
-export type ApprovedBusiness = z.infer<typeof BusinessSchema> & { domain: string; approvedHosts: string[] };
+export type ApprovedBusiness = z.infer<typeof BusinessSchema> & { domain: string; approvedHosts: string[]; plainHttpHosts: string[] };
 export type Approvals = Omit<z.infer<typeof ApprovalsSchema>, 'businesses'> & { businesses: ApprovedBusiness[] };
 
 /** Parses and checks an approvals file. Throws an Error whose message says exactly what is wrong. */
@@ -75,7 +80,11 @@ export function parseApprovals(raw: unknown, now: Date): Approvals {
       if (allHosts.has(host)) throw new Error(`Hostname "${host}" is listed for more than one business.`);
       allHosts.add(host);
     }
-    return { ...b, domain, approvedHosts: hosts };
+    const plainHttpHosts = (b.plainHttpHosts ?? []).map((h) => h.trim().toLowerCase());
+    for (const host of plainHttpHosts) {
+      if (!hosts.includes(host)) throw new Error(`Business ${b.label}: "${host}" is marked for plain HTTP but is not one of its approved hostnames.`);
+    }
+    return { ...b, domain, approvedHosts: hosts, plainHttpHosts };
   });
   return { ...parsed.data, businesses };
 }

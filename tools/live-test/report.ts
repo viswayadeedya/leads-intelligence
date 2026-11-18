@@ -23,6 +23,13 @@ export type LiveRunSummary = {
 
 const esc = (v: string | null | undefined) => mdEscape(v ?? '');
 const urlOf = (r: SourceRecord) => r.sourceUrl ?? '(no address)';
+/** The address the page actually came from, when a redirect moved it. */
+const servedFrom = (r: SourceRecord): string => {
+  const final = typeof r.queryContext.finalUrl === 'string' ? r.queryContext.finalUrl : null;
+  if (!final) return '';
+  if (final === r.sourceUrl) return 'same address';
+  return `${final} (${r.queryContext.redirects ?? '?'} redirect(s)${final.startsWith('http://') ? '; UNENCRYPTED HTTP' : ''})`;
+};
 
 export function renderInternalMarkdown(db: Db, summary: LiveRunSummary, approved: ApprovedBusiness): string {
   const run = db.runs.find((r) => r.id === summary.runId)!;
@@ -54,10 +61,10 @@ export function renderInternalMarkdown(db: Db, summary: LiveRunSummary, approved
   L.push('- Method: GET requests for HTML only. No forms submitted, no calls, no logins, no scripts run, no cookies kept.');
 
   L.push('', '## 3. Pages', '');
-  L.push('| Page | Result | Detail | Retrieved (UTC) | Could not read in full because |', '|---|---|---|---|---|');
+  L.push('| Page requested | Served from | Result | Detail | Retrieved (UTC) | Could not read in full because |', '|---|---|---|---|---|---|');
   for (const r of records.filter((x) => x.sourceType === 'website')) {
     const limits = (r.extracted?.readLimits ?? []).join(', ') || (r.accessStatus === 'ok' ? 'nothing noted' : 'not read');
-    L.push(`| ${urlOf(r)} | ${r.accessStatus} | ${esc(r.accessDetail)} | ${r.retrievedAt} | ${esc(limits)} |`);
+    L.push(`| ${urlOf(r)} | ${servedFrom(r)} | ${r.accessStatus} | ${esc(r.accessDetail)} | ${r.retrievedAt} | ${esc(limits)} |`);
   }
   if (run.errorSummary.length > 0) {
     L.push('', 'Problems during the run:');
@@ -81,7 +88,7 @@ export function renderInternalMarkdown(db: Db, summary: LiveRunSummary, approved
     L.push('- Source pages:');
     for (const id of e.sourceRecordIds) {
       const r = byId.get(id);
-      if (r) L.push(`  - ${urlOf(r)} (retrieved ${r.retrievedAt}, ${r.accessStatus})`);
+      if (r) L.push(`  - ${servedFrom(r) === 'same address' || servedFrom(r) === '' ? urlOf(r) : servedFrom(r).replace(/ \(.*$/, '')} (retrieved ${r.retrievedAt}, ${r.accessStatus})`);
     }
     L.push('');
   }

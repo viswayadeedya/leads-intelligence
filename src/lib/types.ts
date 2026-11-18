@@ -101,7 +101,17 @@ export type InvestigationRun = {
   startedAt: string | null;
   finishedAt: string | null;
   mode: Mode;
-  queryScope: { maxPages: number; plannedPaths: string[] | null };
+  queryScope: {
+    maxPages: number;
+    plannedPaths: string[] | null;
+    /**
+     * Set when the home page was served from a different origin of the same site
+     * (for example "https://www.example.com" when "https://example.com" was asked for).
+     * Inner pages are then requested there, under that origin's robots.txt.
+     */
+    canonicalBase?: string | null;
+    canonicalRobots?: { status: 'ok' | 'none' | 'unreachable'; text: string | null } | null;
+  };
   robots: { status: 'not_fetched' | 'ok' | 'none' | 'unreachable'; text: string | null };
   budgetExhausted: boolean;
   fixtureNotesSeeded: boolean;
@@ -179,7 +189,7 @@ export type VerificationStatus = 'needs_review' | 'accepted' | 'rejected' | 'nee
 export type Sensitivity = 'public' | 'restricted' | 'personal';
 export type Confidence = 'low' | 'medium' | 'high';
 export type Stance = 'reports_problem' | 'reports_positive' | 'neutral';
-export type Caveat = 'geo_uncertain' | 'anecdotal' | 'stale' | 'html_only' | 'site_may_be_outdated';
+export type Caveat = 'geo_uncertain' | 'anecdotal' | 'stale' | 'html_only' | 'site_may_be_outdated' | 'unencrypted_http';
 
 export type Evidence = {
   id: string;

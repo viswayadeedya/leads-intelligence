@@ -1,6 +1,6 @@
 # Build Log
 
-Status: **Phase 0 and Phase 1 (roadmap numbering) built in mock mode. Live mode is not available. Awaiting independent review; nothing here is self-certified.** `main` is commit `22068db` and has since been published to a remote by the owner. Review work is on the unpushed branch `review/milestone-1-hardening` (see the last entry).
+Status: **Phase 0 and Phase 1 (roadmap numbering) built in mock mode. Live mode is not available. Awaiting independent review; nothing here is self-certified.** `main` is commit `22068db` and has since been published to a remote by the owner. The hardening branch is published as `origin/review/milestone-1-hardening` (`4801fe5`). The first live test (three real websites, operator-approved) is on the local branch `feature/live-evidence-prototype`; see the last entry.
 
 ## Initial handoff
 - Documents and synthetic fixture prepared.
@@ -243,3 +243,111 @@ Browser check (dev server on a throwaway data folder, since deleted): first-run 
 
 ### Exact next step
 Owner or independent reviewer: `git switch review/milestone-1-hardening`, `npm install`, install gitleaks if absent, `npm run verify`, then `npm run dev` and complete "Set up sign-in". Review `CLAUDE_REVIEW_PACKET.md` section "Review branch". If accepted, merge to `main` yourself.
+
+---
+
+## 2026-11-18 — Phase 2 gate: operator live test, three real HVAC websites (branch `feature/live-evidence-prototype`)
+
+**Requested by the owner.** The hardening branch was pushed first: `origin/review/milestone-1-hardening` is at `4801fe5`, confirmed with `git ls-remote`. `main` was not touched, nothing was merged or deployed, `AGENTS.md` was left alone. This work is on a new local branch cut from the hardening branch. It has not been pushed.
+
+**Real businesses are not named in this repository.** They are called A, B and C here. Names, hostnames, the approvals file, the three internal reports and the verification table are in `research-private/live-test/`, which git ignores (`.gitignore`, and the launcher refuses to run otherwise).
+
+### What was built (smallest thing that could do the job)
+- The web app is unchanged in this respect: mock-only, cannot construct a live transport.
+- A separate launcher, `scripts/live-investigate.mjs`, runs ONE investigation of ONE business named in an operator approvals file. Without `--confirm-live` it prints what it would contact and stops.
+- `createApprovedLiveTransport` (replaces the generic live transport, which no longer exists): reaches only the exact hostnames approved for that business; redirects may land only on an approved hostname; 2 s pause between requests; hard ceiling of 20 requests on the wire; GET only, no cookies, no forms.
+- The socket layer refuses, at connect time, any non-public address, any port other than 80/443 and any unapproved host, and checks the peer address after connecting. This is a third check, independent of URL validation.
+- Investigations refuse a live transport with no approved-host list and never request a website that is not on it.
+- Approvals file (`tools/live-test/approvals.ts`): exact hostnames; only the business's domain and its `www.` form; at most 5 businesses; expires after 14 days; must be outside version control.
+- Internal Markdown report per run with identity, scope, pages, every observation with ID, source address, time, status and confidence, unknowns, verifier output and the full request log.
+
+### Network safety requirements: checked before any request, one not met, owner decided
+| Requirement (SECURITY_PROTOCOL "Safe fetching") | Status |
+|---|---|
+| http/https only; parser-validated URLs; no credentials, localhost, private, link-local, metadata or non-public DNS answers | Met (tests) |
+| Validate every connection and redirect hop; connect to the validated address | Met (tests) |
+| Cap redirects; no alternate schemes or unusual ports | Met (tests) |
+| Limit bytes, content types, depth, timeouts, concurrency, total requests | Met (5 pages, 1 MB, 10 s, sequential, 8 page requests, 20 on the wire) |
+| Respect robots.txt and access restrictions; stop at denial or bot checks | Met (and extended: see defects 3 and 4 below) |
+| **Apply egress network restrictions** | **Not met at operating-system or network level.** Enforced inside the application only, at three points. The builder cannot add a firewall rule (a system security setting). |
+
+Work stopped there and the owner was asked. **Owner's decision (recorded in the approvals file): "Proceed, app-level only"**, accepting the remaining risk for these supervised runs only. It remains a blocker for any hosted, unattended or wider live use.
+
+### Approvals given by the owner, in order
+1. Three exact hostnames (a fourth, offered as a spare, was not approved and was never requested).
+2. After the first runs: plain HTTP for one `www.` hostname of A (its HTTPS address redirects there), and a new hostname for C (the directory-listed domain forwards to it).
+
+### What happened
+| | A | B | C |
+|---|---|---|---|
+| First attempt | Stopped: HTTPS redirects to plain HTTP. Nothing read, nothing concluded. | Completed | Stopped: listed domain redirects to another hostname. Not followed. |
+| Final run | review_ready, 3 pages, 10.1 s, 9 requests on the wire | review_ready, 3 pages, 8.2 s, 4 requests | review_ready, 5 pages, 17.0 s, 10 requests |
+| Identity | confirmed from the site's own text | confirmed from the site's own text | confirmed from the site's own text |
+| robots.txt | read and applied (on the origin that serves the site) | read and applied | read and applied |
+| Observations | 5 | 4 | 5 |
+| Opportunities proposed | 0 | 0 | 0 |
+| Requests in stopped attempts | 13 | 0 | 4 |
+
+No page was refused with 401/403/429, no bot check appeared, no robots.txt rule disallowed a requested page. No form was submitted. No request went to any host outside the approvals.
+
+### Manual verification (by the builder, in a browser, read-only; 11 page views)
+14 tool observations checked against the original pages:
+
+| Verdict | Count |
+|---|---|
+| Verified | 12 |
+| Verified but incomplete (the site states two different office hours; the tool reported one) | 1 |
+| **Unsupported: false positive** | **1** |
+
+**The false positive:** for C the tool recorded "no statement about after-hours or emergency availability on the 5 pages inspected". The contact page says "emergency HVAC service". The rule only recognised "emergency service" with the words adjacent. This would have been a false "not found" claim about a real business. It was caught only because the page was read by hand. The rule is fixed and has a regression test with the exact wording; the stored observation is flagged in the verification file for rejection in review.
+
+Unknowns recorded for all three: how calls are answered, how form submissions are followed up, pages beyond the 3 to 5 read, business size, search and review presence.
+
+**Commercial usefulness (builder's assessment; the operator decides):** the tool proposed no opportunity for any of the three, correctly. All three show a phone number and a contact form; two state 24-hour emergency service. There is no evidence of a missed lead and none is implied. The evidence supports one or two neutral questions per business (for example: two different sets of office hours on one site; advertised 24-hour service next to office hours that end mid-afternoon). None meets the product's own standard for a defensible opportunity. Phase 2 gate result on usefulness: **0 of 3 reports with a defensible opportunity; 3 of 3 with a grounded question.**
+
+### Defects found by running against real sites (all fixed, all with tests)
+1. **False "not found" for emergency availability** (above). Any mention of emergencies, "open 24" or "day or night" now counts.
+2. **Inner pages were requested on the wrong address.** A's home page is served from `www.`; the tool kept asking the bare domain, which returns 404 for everything but `/`. The investigation now continues on the origin the home page was served from, if that host is approved.
+3. **robots.txt of a redirect target was not read.** robots.txt belongs to an origin. The transport now reads the target origin's robots.txt before following a redirect that leaves the current origin, and the investigation reads it again for the origin it continues on (served from the run's cache, not requested twice).
+4. **A refused redirect did not say where it pointed**, so the operator could not decide whether to approve it. The log now names the scheme and hostname only; the target is still never requested.
+5. **Truncated, script-drawn or widget-embedding pages could produce "not found".** Pages now carry `readLimits`; any such page turns the absence into an unknown. (Found by reading the extractor before the run, not by a failure.)
+6. **Identity check only recognised "City, ST".** It now reads "City, Michigan" and "City MI 49080" and accepts only real state names and codes.
+7. The page's final address and redirect count were not stored. They are now, and an observation whose page arrived over plain HTTP carries an `unencrypted_http` caveat.
+
+Still wrong or weak, not fixed: the tool reports the first office-hours statement it finds and does not notice a conflicting one; "Open 24 Hours" is not read as office hours; a "Get a Quote" button is typed as a booking link; only the first matching form or link per site is described.
+
+### Commands and results (final run)
+| Command | Result |
+|---|---|
+| `npm run verify` | exit 0: typecheck; lint 0 errors, 0 warnings; **14 test files, 522 tests passed, 0 failed, 0 skipped** (was 461); gitleaks history 0 and working folder 0; project-rule scan 0; bundle check 0; `npm audit --omit=dev` 0 |
+| New tests | `tests/live-approved-hosts.test.ts` (53): approved-host transport, approvals file, launcher refusals, end-to-end runs against a controlled TLS site. `tests/live-fetch-controlled.test.ts` +3, `tests/ssrf.test.ts` +2, `tests/extract-robots.test.ts` +3 |
+| Live runs | see "Reproduce" below; output in `research-private/live-test/reports/` |
+
+Output: `docs/delivery/test-evidence/verify-output.txt`, `vitest-verbose.txt`.
+
+### Reproduce the three investigations
+Needs the approvals file (untracked; expires 14 days after its `approvedAt`).
+```
+node scripts/live-investigate.mjs --approvals research-private/live-test/approvals.json --list
+node scripts/live-investigate.mjs --approvals research-private/live-test/approvals.json --business A --confirm-live
+node scripts/live-investigate.mjs --approvals research-private/live-test/approvals.json --business B --confirm-live
+node scripts/live-investigate.mjs --approvals research-private/live-test/approvals.json --business C --confirm-live
+```
+Each prints the hostnames it may reach, then writes `research-private/live-test/reports/<label>-internal-report.md`. Evidence IDs change on every run. A reviewer without the approvals file can run the same code against controlled servers: `npx vitest run tests/live-approved-hosts.test.ts`.
+
+### Phase 2 gate ("three real permitted websites tested, no forms submitted, findings manually verified")
+- Three real, operator-approved websites tested end to end: **yes.**
+- No forms submitted: **yes** (the controlled-server test asserts it; the live request logs show GET only).
+- Findings manually verified: **yes, by the builder.** 13 of 14 hold; 1 was false.
+- Not done: verification by the operator; any timing of a person doing it; a repeat visit; more than 5 pages per site.
+
+### Remaining blockers
+1. **No network-level egress restriction.** Accepted by the owner for this test only.
+2. **The operator has not reviewed the 14 observations** in the tool (all are `needs_review`). The app cannot display this data yet: it only opens its own data folder and labels everything as mock. One observation must be rejected.
+3. **Retention for live data is still undefined.** For this test everything is in one ignored folder that can be deleted by hand. That is a workaround, not a policy.
+4. **The verifier and extractor rules were tuned on three sites.** One in fourteen observations was false. That rate is not good enough for unattended use and is not a measured precision; the sample is too small.
+5. Independent review of both branches has not happened.
+6. Third-party comment policy (unchanged).
+
+### Exact next step
+The operator reads `research-private/live-test/reports/VERIFICATION.md` and the three reports against the live pages, and decides (a) whether a grounded question without a proven problem is enough to start a conversation, and (b) whether to merge the two branches. No further build work is proposed here.

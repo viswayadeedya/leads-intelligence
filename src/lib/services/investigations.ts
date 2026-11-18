@@ -15,14 +15,13 @@ import { checkIdentityAgainstSite } from '../identity';
 import { newId, sha256 } from '../ids';
 import { logEvent } from '../log';
 import { candidatePaths, detectSignals, extractPage, type PageFacts } from '../sources/html-extract';
-import { ALLOW_ALL, DISALLOW_ALL, parseRobots, type RobotsPolicy } from '../sources/robots';
+import { ALLOW_ALL, DISALLOW_ALL, parseRobots, ROBOTS_AGENT, type RobotsPolicy } from '../sources/robots';
 import type { FetchOutcome } from '../sources/transport';
 import { aggregateWebsiteEvidence, pathOf } from '../sources/website-evidence';
 import type { Business, Db, ErrorCode, InvestigationRun, PageExtract, RunStatus, SourceRecord, StageKey, StageState, StageStatus } from '../types';
 import { analyzeRun } from './analysis';
 import { seedFixtureNotes } from './evidence';
 
-const ROBOTS_AGENT = 'opportunityintelligenceresearch';
 
 function initialStages(): StageState[] {
   const keys: StageKey[] = ['identity', 'website', 'public_signals', 'evidence_review', 'report'];
@@ -65,6 +64,7 @@ export function describeOutcome(outcome: FetchOutcome): { detail: string; code: 
     return { detail: outcome.httpStatus ? `Page unavailable (HTTP ${outcome.httpStatus})` : 'Page unavailable', code: 'source_unavailable' };
   }
   if (r === 'timeout') return { detail: 'Timed out', code: 'timeout' };
+  if (r === 'security_blocked:https_downgrade') return { detail: 'The site redirects its secure address to plain HTTP; not followed', code: 'security_blocked' };
   if (r.startsWith('security_blocked')) return { detail: 'Blocked by the safe-fetch rules', code: 'security_blocked' };
   if (r === 'response_too_large') return { detail: 'Response larger than the size limit', code: 'extraction_failed' };
   if (r === 'content_type_not_allowed') return { detail: 'Not an HTML page', code: 'extraction_failed' };
@@ -172,8 +172,11 @@ async function fetchPath(ctx: Ctx, run: InvestigationRun, base: string, path: st
       extracted,
       retryable: outcome.kind === 'error' || outcome.kind === 'unavailable' ? outcome.retryable : false,
     } as const;
+    // Where the page was actually served from, and how many redirects it took to get there.
+    const landed = outcome.kind === 'ok' ? { finalUrl: outcome.finalUrl.slice(0, 500), redirects: outcome.redirectChain.length } : { finalUrl: null, redirects: null };
     if (row) {
       Object.assign(row, fields);
+      row.queryContext = { ...row.queryContext, ...landed };
       row.attempts += 1;
       return row;
     }
@@ -186,7 +189,7 @@ async function fetchPath(ctx: Ctx, run: InvestigationRun, base: string, path: st
       sourceUrl: url,
       provider: ctx.transport.id,
       permittedStorageClass: 'PUBLIC_BUSINESS',
-      queryContext: { path },
+      queryContext: { path, ...landed },
       notes: '',
       attempts: 1,
       synthetic: ctx.transport.synthetic,
@@ -371,8 +374,44 @@ async function advance(ctx: Ctx, runId: string, retry: boolean): Promise<void> {
         r.status = 'collecting';
         setStage(r, 'website', 'running', 'Inspecting contact and booking pages.', nowIso());
       });
+      // If the home page was served from another origin of the same site ("www.", or a
+      // different scheme), the inner pages live there too. Continue on that origin, and
+      // under ITS robots.txt, rather than asking the first address for pages it does not serve.
+      let pageBase = base;
+      let pagePolicy = policy;
+      let pageRobotsReason = robotsReason;
+      const landedAt = typeof home.record?.queryContext.finalUrl === 'string' ? home.record.queryContext.finalUrl : null;
+      let canonical = run.queryScope.canonicalBase ?? null;
+      if (!canonical && landedAt) {
+        try {
+          const landed = new URL(landedAt);
+          const sameSite = landed.hostname.replace(/^www\./, '') === host.replace(/^www\./, '');
+          if (landed.origin !== base && sameSite && hostApproved(ctx, landed.hostname)) canonical = landed.origin;
+        } catch {
+          canonical = null;
+        }
+      }
+      if (canonical) {
+        let robots = run.queryScope.canonicalRobots ?? null;
+        if (!robots || (retry && robots.status === 'unreachable')) {
+          robots = { status: 'unreachable', text: null };
+          if (takeRequest(ctx, runId)) {
+            const outcome = await ctx.transport.fetchPage(`${canonical}/robots.txt`, 0);
+            if (outcome.kind === 'ok') robots = { status: 'ok', text: outcome.body.slice(0, 20_000) };
+            else if (outcome.kind === 'restricted' || (outcome.kind === 'unavailable' && outcome.httpStatus !== null && outcome.httpStatus < 500)) robots = { status: 'none', text: null };
+          }
+        }
+        const saved = robots;
+        mutateRun(ctx, runId, (r) => {
+          r.queryScope.canonicalBase = canonical;
+          r.queryScope.canonicalRobots = saved;
+        });
+        pageBase = canonical;
+        pagePolicy = saved.status === 'ok' ? parseRobots(saved.text ?? '', ROBOTS_AGENT) : saved.status === 'none' ? ALLOW_ALL : DISALLOW_ALL;
+        pageRobotsReason = saved.status === 'ok' ? 'robots_disallow' : 'robots_unreachable';
+      }
       for (const path of run.queryScope.plannedPaths ?? []) {
-        await fetchPath(ctx, run, base, path, policy, robotsReason, retry);
+        await fetchPath(ctx, run, pageBase, path, pagePolicy, pageRobotsReason, retry);
       }
     }
 

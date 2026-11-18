@@ -12,11 +12,17 @@ export type FetchOutcome =
       bytes: number;
     }
   /** Access was refused (401/403/429, robots, CAPTCHA, off-domain redirect). Never retried automatically. */
-  | { kind: 'restricted'; reason: string; httpStatus: number | null }
+  | {
+      kind: 'restricted';
+      reason: string;
+      httpStatus: number | null;
+      /** For a refused redirect: where it pointed (scheme and hostname only). It was NOT requested. */
+      redirectedTo?: string;
+    }
   /** The source did not provide the page (404, 5xx, DNS failure, no fixture). */
   | { kind: 'unavailable'; reason: string; httpStatus: number | null; retryable: boolean }
   /** Our side failed or refused (timeout, too large, wrong content type, security block). */
-  | { kind: 'error'; reason: string; retryable: boolean };
+  | { kind: 'error'; reason: string; retryable: boolean; redirectedTo?: string };
 
 export interface PageTransport {
   readonly id: string;

@@ -53,7 +53,7 @@ export async function runLiveInvestigation(input: {
 
   // Only this business's hostnames. The other approved businesses are out of reach for this run.
   const transport = createApprovedLiveTransport(
-    { approvedHosts: approved.approvedHosts, timeoutMs: limits.timeoutMs, maxBytes: limits.maxBytes, maxRedirects: limits.maxRedirects, minDelayMs: limits.minDelayMs, maxWireRequests: limits.maxWireRequests },
+    { approvedHosts: approved.approvedHosts, plainHttpHosts: approved.plainHttpHosts, timeoutMs: limits.timeoutMs, maxBytes: limits.maxBytes, maxRedirects: limits.maxRedirects, minDelayMs: limits.minDelayMs, maxWireRequests: limits.maxWireRequests },
     input.deps ?? {},
   );
 

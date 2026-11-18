@@ -46,6 +46,17 @@ Individual checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run sec
 - What works, what is mocked and what is not built: `docs/delivery/CLAUDE_REVIEW_PACKET.md`.
 - Five-task walkthrough and screenshots: `docs/ux/WALKTHROUGH.md`.
 
+### Operator live test (real websites; off unless you run it)
+The app itself never fetches a real website. One separate command can, for one business at a time, and only for hostnames you approved in a file that git does not track:
+
+```
+node scripts/live-investigate.mjs --approvals research-private/live-test/approvals.json --list
+node scripts/live-investigate.mjs --approvals research-private/live-test/approvals.json --business A                  # prints what it would contact, requests nothing
+node scripts/live-investigate.mjs --approvals research-private/live-test/approvals.json --business A --confirm-live   # makes real requests
+```
+
+It reads at most 5 pages with GET, honours robots.txt, waits 2 seconds between requests, never submits a form, and writes an internal report next to the approvals file. The approvals format is defined in `tools/live-test/approvals.ts`; an approval expires after 14 days. There is no operating-system firewall rule behind the app's own checks; see ADR-025 before using it on anything beyond a supervised test. Real businesses must never be named in tracked files.
+
 ### Code map
 - `src/lib/services/` — owner-scoped operations: businesses, investigations (state machine), evidence review, analysis, reports, outreach.
 - `src/lib/reasoning/` — reasoner boundary (rule-based mock; no LLM) and the claim-to-evidence verifier.
@@ -53,7 +64,8 @@ Individual checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run sec
 - `src/lib/security/` — SSRF guard, guarded fetch (locked; tested only against controlled local servers), passphrase hashing, origin/host/CSP helpers.
 - `src/fixtures/golden.ts` — 15 fictional golden cases.
 - `src/app/` — screens, server actions and two read-only API routes. `src/proxy.ts` — CSP, origin check, sign-in gate.
-- `tests/` — 461 tests including the security negative tests. `tests/lab/` is a controlled local network for the fetcher tests; nothing in it leaves this computer.
+- `tests/` — 522 tests including the security negative tests. `tests/lab/` is a controlled local network for the fetcher tests; nothing in it leaves this computer.
+- `tools/live-test/` and `scripts/live-investigate.mjs` — the operator live test (see below). The only code that can make a real request.
 - `supabase/migrations/0001_init.sql` — schema with row-level security. **Not applied, not tested.**
 
 ## V3: UX and production-minded validation

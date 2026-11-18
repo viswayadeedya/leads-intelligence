@@ -570,7 +570,12 @@ function controlledTransport(approvedHosts: string[]): PageTransport {
     costCentsPerRequest: 0,
     approvedHosts,
     canHandle: (host) => approvedHosts.includes(host),
-    fetchPage: (url) => safeFetch(url.replace(/^https:/, 'http:'), OPTS, lab.deps),
+    // The lab sites are plain HTTP, so the request is rewritten on the way out and the
+    // reported address on the way back; the investigation sees an ordinary https site.
+    fetchPage: async (url) => {
+      const out = await safeFetch(url.replace(/^https:/, 'http:'), OPTS, lab.deps);
+      return out.kind === 'ok' ? { ...out, finalUrl: out.finalUrl.replace(/^http:/, 'https:') } : out;
+    },
   };
 }
 
@@ -706,6 +711,50 @@ describe('controlled site: the investigation pipeline over real sockets', () => 
     expect(b.site.hits.map((h) => h.path)).toEqual(['/robots.txt']);
     expect(activeEv(ctxB.store.snapshot(), runB.id)).toEqual([]);
     expect(runB.unknowns.map((u) => u.kind)).toEqual(['website_not_inspected']);
+  });
+
+  it('when the home page is served from the "www." address, inner pages are requested there, under that address\'s robots.txt', async () => {
+    const host = name('apex-only-home');
+    const www = `www.${host}`;
+    const site = await lab.site(host, (req, res) => {
+      if (req.headers.host === host) {
+        // The bare domain only forwards its home page; everything else is missing there.
+        if (req.url === '/') return redirect(res, `http://${www}/`, 301);
+        return sendHtml(res, html('Not found'), 404);
+      }
+      if (req.url === '/robots.txt') {
+        res.writeHead(200, { 'content-type': 'text/plain' });
+        return res.end('User-agent: *\nDisallow: /services\n');
+      }
+      if (req.url === '/') return sendHtml(res, HOME);
+      if (req.url === '/services') return sendHtml(res, SERVICES);
+      if (req.url === '/contact') return sendHtml(res, CONTACT);
+      return sendHtml(res, html('Not found'), 404);
+    });
+    lab.setDns(www, [{ address: site.ip, family: 4 }]);
+    const ctx = labCtx([host, www]);
+    const run = await startInvestigation(ctx, { businessId: createBusiness(ctx, { ...BUSINESS, domain: host }).id });
+    const db = ctx.store.snapshot();
+    expect(site.hits.map((h) => `${h.host === www ? 'www' : 'apex'} ${h.path}`)).toEqual(['apex /robots.txt', 'apex /', 'www /', 'www /robots.txt', 'www /contact']);
+    expect(run.queryScope.canonicalBase).toBe(`https://${www}`);
+    // /services is disallowed by the www robots.txt: recorded as restricted, never requested
+    const services = db.sourceRecords.find((r) => r.runId === run.id && r.sourceUrl === `https://${www}/services`)!;
+    expect(services).toMatchObject({ accessStatus: 'restricted', accessDetail: 'Not fetched: disallowed by robots.txt' });
+    expect(run.status).toBe('partial');
+    expect(activeEv(db, run.id).filter((e) => e.polarity === 'absence')).toEqual([]);
+    expectNoInternalContact();
+  });
+
+  it('a home page that lands on a host outside the approved list never moves the investigation there', async () => {
+    const host = name('lands-elsewhere');
+    const www = `www.${host}`;
+    const site = await lab.site(host, (req, res) => (req.headers.host === host && req.url === '/' ? redirect(res, `http://${www}/`, 301) : req.url === '/robots.txt' ? sendHtml(res, html('nf'), 404) : sendHtml(res, HOME)));
+    lab.setDns(www, [{ address: site.ip, family: 4 }]);
+    // "www." was not approved, but this test transport would follow it (default same-site rule).
+    const ctx = labCtx([host]);
+    const run = await startInvestigation(ctx, { businessId: createBusiness(ctx, { ...BUSINESS, domain: host }).id });
+    expect(run.queryScope.canonicalBase ?? null).toBeNull();
+    expect(site.hits.filter((h) => h.host === www).map((h) => h.path)).toEqual(['/']);
   });
 
   it('an unreadable home page (compressed, garbage, oversized, empty, 403) never yields a finding', async () => {
