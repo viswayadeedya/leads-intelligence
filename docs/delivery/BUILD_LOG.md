@@ -121,3 +121,29 @@ The root commit of `main`. Print its hash with `git rev-list --max-parents=0 HEA
 
 ### Exact next step
 Unchanged from the previous entry: independent review against `REVIEWER_CHECKLIST.md`, and the owner's unaided five-task walkthrough. Before any push: install and run gitleaks over history, decide public or private hosting, and check the commit author email.
+
+---
+
+## 2026-11-19 — Status re-check in a fresh cloud checkout (no code changes)
+
+**Requested by the owner:** explain what is done and what is not. No source, test or specification file was changed; this entry is the only edit.
+
+### Commands and results (Linux container, Node 22.23.5, clean `npm ci`)
+| Command | Result |
+|---|---|
+| `npm ci` | success |
+| `npm run verify` | exit 0: typecheck pass; lint pass; 9 test files, **176 passed, 0 failed**; secret-scan (stopgap) 121 files, 0 findings; client-bundle check 14 files (603,655 bytes), 0 findings; `npm audit --omit=dev` 0 vulnerabilities; production build 15 routes |
+
+This is the first run on Linux and on Node 22; earlier runs were Windows 11 / Node 24.
+
+### Corrections to earlier entries
+- Earlier entries say "no remote, not pushed". That is no longer true: the repository now has a GitHub remote (`origin`) and `main` is pushed there. This log holds **no record that gitleaks (or any established secret scanner) was run over history before that push**, which the previous entry said should happen first. Only the stopgap scanner has run.
+
+### State
+Unchanged: Phase 0 and Phase 1 built in mock mode; Phase 2 to 6 not started; no independent review recorded; no owner walkthrough recorded.
+
+### Blockers (need the owner)
+Unchanged: independent review; Phase 2 approval and site choices; third-party comment policy; gitleaks decision (now also: confirm repository visibility and scan the pushed history).
+
+### Exact next step
+Unchanged: independent review against `REVIEWER_CHECKLIST.md` and the owner's unaided five-task walkthrough, then Phase 2 starting with egress restriction design and RLS tests against a development database.
